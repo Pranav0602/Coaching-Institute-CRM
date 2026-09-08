@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# Coaching Institute CRM - backend dependencies
+#
+# PostgreSQL is mandatory. psycopg2-binary is not optional; settings.py refuses to
+# start without a driver. See SETUP.md.
+# ---------------------------------------------------------------------------
+
+# Core framework
+asgiref>=3.8.0
+Django>=5.0.0
+sqlparse>=0.4.4
+tzdata>=2024.1
+
+# REST API
+djangorestframework>=3.14.0
+djangorestframework-simplejwt>=5.3.0
+django-cors-headers>=4.3.0
+drf-spectacular>=0.27.0
+PyJWT>=2.8.0
+
+# Database
+psycopg2-binary>=2.9.9
+# Vector column/index support for the planned RAG corpus. Installed now so the
+# pgvector readiness checks and deployment images stay in sync; no application code
+# imports it until the `rag` app lands (see RAG_IMPLEMENTATION_PLAN.md).
+pgvector>=0.2.5
+
+# Image handling - required by Django's ImageField for profile photos
+pillow>=10.2.0
+
+# AWS integrations (Cognito, S3, SES/SNS, CloudWatch, Secrets Manager).
+# All wrapped with graceful fallbacks in aws_services/ so local development works
+# without credentials.
+boto3>=1.34.0
+
+# PDF generation for receipts and reports
+reportlab>=4.1.0
+
+# ---------------------------------------------------------------------------
+# Deliberately NOT added yet
+# ---------------------------------------------------------------------------
+# celery / redis        - RAG ingestion workers. Adding a broker before there is any
+#                         task to run would be dead configuration. Introduce alongside
+#                         the `rag` app (RAG_IMPLEMENTATION_PLAN.md 5.4).
+# openai / langchain    - provider choice is an open decision (plan 11.1).
+# python-dotenv         - settings.py has a dependency-free .env loader so a fresh
+#                         checkout boots before `pip install` runs.

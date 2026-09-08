@@ -1,0 +1,76 @@
+# ---------------------------------------------------------------------------
+# Coaching Institute CRM - local / staging stack
+#
+# The database image is pgvector/pgvector:pg16 rather than plain postgres:16 so the
+# `vector` extension is available server-side. This project does not support SQLite,
+# so `db` is a hard dependency of `backend`.
+#
+# Credentials come from institute_crm/.env (git-ignored). Copy .env.example first:
+#   cp .env.example .env
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: crm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-Institute_CRM}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Creates the vector/pg_trgm/citext extensions on first boot only.
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-Institute_CRM}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: crm_backend
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py check --deploy --fail-level ERROR &&
+             python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python seed_data.py &&
+             gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 institute_crm.wsgi:application"
+    volumes:
+      - .:/app
+      # Persist user uploads (profile photos, documents) outside the container layer.
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Container-network overrides for values that differ from the host .env.
+      DB_HOST: db
+      DB_PORT: "5432"
+      MEDIA_ROOT: /app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: crm_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  media_data:
