@@ -12,8 +12,27 @@ from django.urls import include, path
 
 from institute_crm.analytics_views import DashboardAnalyticsView
 from institute_crm.health_views import HealthView, ReadinessView
+from django.http import JsonResponse
+
+
+def _root_view(request):
+    """Landing for https://coaching-institute-crm.onrender.com/ — avoids 404 on empty path."""
+    return JsonResponse(
+        {
+            "service": "Coaching Institute CRM API",
+            "status": "ok",
+            "message": "Backend is running. See /api/docs/ for API documentation.",
+            "health": "/healthz/",
+            "ready": "/readyz/",
+            "docs": "/api/docs/",
+            "schema": "/api/schema/",
+            "admin": "/admin/",
+        }
+    )
+
 
 urlpatterns = [
+    path("", _root_view, name="root"),
     path("admin/", admin.site.urls),
 
     # Operational probes (unauthenticated, no data exposure)
