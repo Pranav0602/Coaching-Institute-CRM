@@ -1,0 +1,51 @@
+# Render Blueprint for Coaching Institute CRM — Backend only
+# Frontend is on Vercel (institute_crm/frontend). This file provisions Render Postgres + Web Service.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: pserv  # managed Postgres
+    name: crm-postgres
+    plan: starter
+    ipAllowList: [] # open to Render services only
+    databaseName: Institute_CRM
+    user: crm_user
+    # Enable pgvector for RAG. Render Postgres supports CREATE EXTENSION vector.
+    # After first deploy, run once via psql $DATABASE_URL:
+    #   CREATE EXTENSION IF NOT EXISTS vector;
+    #   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    #   CREATE EXTENSION IF NOT EXISTS citext;
+
+  - type: web
+    name: crm-backend
+    runtime: python
+    plan: starter
+    region: singapore # closest to ap-south-1 for AWS; change as needed
+    rootDir: institute_crm
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: gunicorn institute_crm.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 60
+    healthCheckPath: /healthz/
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DEBUG
+        value: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crm-postgres
+          property: connectionString
+      - key: DB_SSL_REQUIRE
+        value: true
+      - key: RAG_ENABLED
+        value: false
+      - key: SECURE_SSL_REDIRECT
+        value: false  # Render terminates TLS at proxy; set true only if you handle X-Forwarded-Proto correctly

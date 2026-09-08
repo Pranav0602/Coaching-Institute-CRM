@@ -1,7 +1,11 @@
 import axios from "axios";
 
+// Render/Vercel: use VITE_API_BASE_URL, fallback to local dev
+// This file is legacy — canonical client is services/api.js. Keep in sync via env.
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api/auth/",
+  baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -22,10 +26,8 @@ api.interceptors.response.use(
       const refresh = localStorage.getItem("refresh_token");
       if (refresh) {
         try {
-          const { data } = await axios.post(
-            "http://127.0.0.1:8000/api/auth/token/refresh/",
-            { refresh }
-          );
+          // Canonical refresh is under /api/v1/accounts/auth/ — derive from API_BASE
+          const { data } = await axios.post(`${API_BASE}/accounts/auth/token/refresh/`, { refresh });
           localStorage.setItem("access_token", data.access);
           originalRequest.headers.Authorization = `Bearer ${data.access}`;
           return api(originalRequest);

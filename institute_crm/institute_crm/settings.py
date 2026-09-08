@@ -110,12 +110,28 @@ if not DEBUG and SECRET_KEY == _INSECURE_SECRET_KEY:
     )
 
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
+# Render provides RENDER_EXTERNAL_HOSTNAME automatically — include it without manual env edit
+_render_host = env_str("RENDER_EXTERNAL_HOSTNAME", default="")
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
 if not DEBUG and ("*" in ALLOWED_HOSTS or not ALLOWED_HOSTS):
     raise ImproperlyConfigured(
         "ALLOWED_HOSTS must list explicit hostnames when DEBUG=False; wildcards are not allowed."
     )
 
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# Auto-add Render host to CSRF trusted origins (https) if present
+if _render_host and f"https://{_render_host}" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
+# Auto-add Vercel frontend URL to CSRF/CORS if provided via FRONTEND_URL
+_frontend_url = env_str("FRONTEND_URL", default="") or env_str("CORS_ALLOWED_ORIGINS", default="")
+if _frontend_url:
+    # FRONTEND_URL is expected to be single origin like https://xxx.vercel.app
+    if _frontend_url.startswith("http") and _frontend_url not in CSRF_TRUSTED_ORIGINS:
+        # If CORS_ALLOWED_ORIGINS contains comma list, split
+        for origin in env_list("CORS_ALLOWED_ORIGINS", _frontend_url):
+            if origin not in CSRF_TRUSTED_ORIGINS and origin.startswith("http"):
+                CSRF_TRUSTED_ORIGINS.append(origin)
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +168,7 @@ if HAS_SPECTACULAR:
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -204,20 +221,42 @@ if importlib.util.find_spec("psycopg2") is None and importlib.util.find_spec("ps
         "pip install -r requirements.txt"
     )
 
-DATABASES = {
-    "default": {
-        "ENGINE": POSTGRES_ENGINE,
-        "NAME": env_str("DB_NAME", "Institute_CRM"),
-        "USER": env_str("DB_USER", "postgres"),
-        "PASSWORD": env_str("DB_PASSWORD", required=True),
-        "HOST": env_str("DB_HOST", "127.0.0.1"),
-        "PORT": env_str("DB_PORT", "5432"),
-        "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
-        "OPTIONS": {
-            "connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10),
-        },
+# Render provides DATABASE_URL; parse it if present (takes precedence over DB_* split vars)
+_DATABASE_URL = env_str("DATABASE_URL", default="")
+if _DATABASE_URL:
+    try:
+        import dj_database_url  # type: ignore
+
+        DATABASES = {
+            "default": dj_database_url.parse(
+                _DATABASE_URL,
+                conn_max_age=env_int("DB_CONN_MAX_AGE", 60),
+                ssl_require=env_bool("DB_SSL_REQUIRE", default=not DEBUG),
+            )
+        }
+        # Ensure pgvector-compatible engine (dj-database-url may return postgres alias)
+        if DATABASES["default"].get("ENGINE") != POSTGRES_ENGINE:
+            DATABASES["default"]["ENGINE"] = POSTGRES_ENGINE
+    except ImportError as exc:
+        raise ImproperlyConfigured(
+            "DATABASE_URL is set but dj-database-url is not installed. "
+            "Add dj-database-url to requirements.txt or unset DATABASE_URL."
+        ) from exc
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": POSTGRES_ENGINE,
+            "NAME": env_str("DB_NAME", "Institute_CRM"),
+            "USER": env_str("DB_USER", "postgres"),
+            "PASSWORD": env_str("DB_PASSWORD", required=True),
+            "HOST": env_str("DB_HOST", "127.0.0.1"),
+            "PORT": env_str("DB_PORT", "5432"),
+            "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
+            "OPTIONS": {
+                "connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10),
+            },
+        }
     }
-}
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +294,9 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# WhiteNoise compressed + hashed static for Render without nginx
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = env_str("MEDIA_URL", "/media/")
 MEDIA_ROOT = Path(env_str("MEDIA_ROOT", str(BASE_DIR / "media")))
@@ -281,6 +323,13 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 CORS_ALLOW_CREDENTIALS = True
+# Auto-add FRONTEND_URL (Vercel) to CORS if provided
+_frontend_for_cors = env_str("FRONTEND_URL", default="")
+if _frontend_for_cors and _frontend_for_cors not in CORS_ALLOWED_ORIGINS:
+    # Support single origin or comma list
+    for _o in [o.strip() for o in _frontend_for_cors.split(",") if o.strip()]:
+        if _o not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(_o)
 if not DEBUG and CORS_ALLOW_ALL_ORIGINS:
     raise ImproperlyConfigured(
         "CORS_ALLOW_ALL_ORIGINS cannot be enabled when DEBUG=False. "
