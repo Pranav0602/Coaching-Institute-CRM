@@ -47,5 +47,7 @@ services:
         value: true
       - key: RAG_ENABLED
         value: false
+      - key: COGNITO_ENABLED
+        value: false # Django JWT auth only; no Cognito/LocalStack container needed
       - key: SECURE_SSL_REDIRECT
         value: false  # Render terminates TLS at proxy; set true only if you handle X-Forwarded-Proto correctly

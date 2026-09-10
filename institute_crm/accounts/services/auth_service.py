@@ -130,8 +130,10 @@ class AuthService:
     def _sync_cognito_login(*, username: str, password: str) -> dict[str, Any]:
         """Best-effort Cognito authentication. Never blocks a successful local login."""
         try:
-            from aws_services.cognito_service import cognito_service
+            from aws_services.cognito_service import cognito_service, is_cognito_enabled
 
+            if not is_cognito_enabled():
+                return {}
             return cognito_service.authenticate(username, password) or {}
         except Exception as exc:
             logger.debug("Cognito authentication unavailable: %s", exc)
@@ -215,7 +217,10 @@ class AuthService:
         if not user.cognito_sub:
             return
         try:
-            from aws_services.cognito_service import cognito_service
+            from aws_services.cognito_service import cognito_service, is_cognito_enabled
+
+            if not is_cognito_enabled():
+                return
 
             setter = getattr(cognito_service, "set_user_password", None)
             if callable(setter):

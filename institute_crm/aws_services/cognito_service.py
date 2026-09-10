@@ -23,6 +23,18 @@ COGNITO_USER_POOL_ID = os.environ.get('AWS_COGNITO_USER_POOL_ID', 'us-east-1_moc
 COGNITO_APP_CLIENT_ID = os.environ.get('AWS_COGNITO_APP_CLIENT_ID', 'mockAppClientId')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
+
+def is_cognito_enabled() -> bool:
+    """Kill-switch for the Cognito mirror.
+
+    Disabled by default so auth works with plain Django + JWT and no
+    Docker/LocalStack container needs to stay running. Set
+    ``COGNITO_ENABLED=true`` (plus a real pool id) to re-enable.
+    """
+    return os.environ.get('COGNITO_ENABLED', 'false').strip().lower() in (
+        '1', 'true', 'yes', 'on',
+    )
+
 try:
     import boto3
     from botocore.exceptions import ClientError
@@ -40,7 +52,7 @@ PLACEHOLDER_POOL_ID = 'us-east-1_mockPoolId'
 class CognitoService:
     @property
     def client(self):
-        if not BOTO3_AVAILABLE:
+        if not is_cognito_enabled() or not BOTO3_AVAILABLE:
             return None
         endpoint = os.environ.get('AWS_ENDPOINT_URL')
         region = os.environ.get('AWS_REGION', AWS_REGION)
@@ -52,11 +64,13 @@ class CognitoService:
 
     @property
     def enabled(self):
-        return bool(BOTO3_AVAILABLE)
+        return bool(is_cognito_enabled() and BOTO3_AVAILABLE)
 
     @property
     def is_live(self) -> bool:
-        """True only when a real client and a real (non-placeholder) user pool exist."""
+        """True only when explicitly enabled plus a real client/pool exist."""
+        if not is_cognito_enabled():
+            return False
         pool_id = os.environ.get('AWS_COGNITO_USER_POOL_ID', COGNITO_USER_POOL_ID)
         has_endpoint = bool(os.environ.get('AWS_ENDPOINT_URL'))
         return bool(self.enabled and self.client and (pool_id != PLACEHOLDER_POOL_ID or has_endpoint))

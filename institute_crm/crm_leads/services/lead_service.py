@@ -12,7 +12,7 @@ from crm_leads.models import Lead, Admission
 from crm_leads.serializers import LeadSerializer
 from academics.models import Course, Batch, CourseEnrolment
 from finance.models import FeeStructure, Installment
-from aws_services.cognito_service import cognito_service
+from aws_services.cognito_service import cognito_service, is_cognito_enabled
 from aws_services.ses_sns_service import notification_service
 
 logger = logging.getLogger('institute_crm.leads')
@@ -56,18 +56,19 @@ class LeadService:
             phone=lead.phone
         )
 
-        # 3. Provision AWS Cognito User
+        # 3. Provision AWS Cognito User (skipped unless COGNITO_ENABLED=true)
         cognito_sub = f"sub-{uuid.uuid4()}"
-        try:
-            cognito_res = cognito_service.create_user(
-                email=lead.email,
-                temporary_password=temp_password,
-                role_name=Role.STUDENT,
-                attributes={'custom:branch': lead.branch.code}
-            )
-            cognito_sub = cognito_res.get('User', {}).get('Username', cognito_sub)
-        except Exception as e:
-            logger.warning(f"Cognito provisioning failed, using fallback sub: {str(e)}")
+        if is_cognito_enabled():
+            try:
+                cognito_res = cognito_service.create_user(
+                    email=lead.email,
+                    temporary_password=temp_password,
+                    role_name=Role.STUDENT,
+                    attributes={'custom:branch': lead.branch.code}
+                )
+                cognito_sub = cognito_res.get('User', {}).get('Username', cognito_sub)
+            except Exception as e:
+                logger.warning(f"Cognito provisioning failed, using fallback sub: {str(e)}")
 
         student_user.cognito_sub = cognito_sub
         student_user.save()

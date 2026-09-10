@@ -26,6 +26,7 @@ if sys.platform == 'win32':
 # Set default Floci emulator environment variables before importing boto3 / services
 FLOCI_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL', 'http://localhost:4566')
 os.environ['AWS_ENDPOINT_URL'] = FLOCI_ENDPOINT
+os.environ['COGNITO_ENABLED'] = 'true'
 os.environ.setdefault('AWS_ACCESS_KEY_ID', 'test')
 os.environ.setdefault('AWS_SECRET_ACCESS_KEY', 'test')
 os.environ.setdefault('AWS_DEFAULT_REGION', 'us-east-1')
