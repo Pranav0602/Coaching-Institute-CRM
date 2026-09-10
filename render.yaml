@@ -6,8 +6,8 @@ services:
     name: crm-postgres
     plan: starter
     ipAllowList: [] # open to Render services only
-    databaseName: Institute_CRM
-    user: crm_user
+    databaseName: institute_crm
+    user: pranav
     # Enable pgvector for RAG. Render Postgres supports CREATE EXTENSION vector.
     # After first deploy, run once via psql $DATABASE_URL:
     #   CREATE EXTENSION IF NOT EXISTS vector;
