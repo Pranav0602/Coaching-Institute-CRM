@@ -1,19 +1,19 @@
 # Render Blueprint for Coaching Institute CRM — Backend only
 # Frontend is on Vercel (institute_crm/frontend). This file provisions Render Postgres + Web Service.
 # Docs: https://render.com/docs/blueprint-spec
-services:
-  - type: pserv  # managed Postgres
-    name: crm-postgres
+databases:
+  - name: crm-postgres
     plan: starter
-    ipAllowList: [] # open to Render services only
     databaseName: institute_crm
     user: pranav
+    ipAllowList: [] # open to Render services only
     # Enable pgvector for RAG. Render Postgres supports CREATE EXTENSION vector.
     # After first deploy, run once via psql $DATABASE_URL:
     #   CREATE EXTENSION IF NOT EXISTS vector;
     #   CREATE EXTENSION IF NOT EXISTS pg_trgm;
     #   CREATE EXTENSION IF NOT EXISTS citext;
 
+services:
   - type: web
     name: crm-backend
     runtime: python
