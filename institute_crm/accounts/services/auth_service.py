@@ -22,7 +22,7 @@ import threading
 from typing import Any
 
 from django.conf import settings
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password as check_password_hash, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
@@ -43,6 +43,28 @@ logger = logging.getLogger("institute_crm.accounts")
 #: Placeholder OTP retained for the existing demo flow. Real delivery (SES/SNS) is a
 #: follow-up; see `AuthService.request_password_reset`.
 DEMO_OTP = "123456"
+
+
+def _upgrade_stale_hash(user: User):
+    """Build the ``setter`` callback for :func:`check_password_hash`.
+
+    Reproduces the automatic hash upgrade that ``ModelBackend.authenticate``
+    performs and that a direct ``check_password`` call would otherwise skip:
+    when the stored hash no longer matches the preferred hasher (e.g. a
+    PBKDF2 hash after the project moves to Argon2), re-hash with the current
+    preferred hasher and persist it. Runs at most once per user.
+    """
+
+    def _setter(raw_password: str) -> None:
+        try:
+            user.set_password(raw_password)
+            user.save(update_fields=["password"])
+        except Exception:
+            # An upgrade failure must never fail the login that triggered it;
+            # the stale hash still verifies fine next time.
+            logger.warning("Password hash upgrade failed for %s", user.username, exc_info=True)
+
+    return _setter
 
 
 class AuthService:
@@ -161,7 +183,12 @@ class AuthService:
             # password" and cannot be used for enumeration via timing.
             make_password(password)
             return None
-        if not candidate.check_password(password):
+        # `setter` restores Django's automatic hash upgrade (normally done by
+        # ModelBackend.authenticate, which we bypass): stale hashes (e.g.
+        # PBKDF2 after a move to Argon2) migrate transparently on next login.
+        if not check_password_hash(
+            password, candidate.password, setter=_upgrade_stale_hash(candidate)
+        ):
             return None
         return candidate
 
@@ -182,6 +209,15 @@ class AuthService:
     @staticmethod
     def _sync_cognito_login(*, username: str, password: str) -> dict[str, Any]:
         """Best-effort Cognito authentication. Never blocks a successful local login."""
+        import os
+
+        # Fast path: the mirror is off by default (COGNITO_ENABLED=false on
+        # Render). Return before importing the boto3-heavy module, which costs
+        # ~0.5-1s of import time on a fresh worker's first login.
+        if os.environ.get("COGNITO_ENABLED", "false").strip().lower() not in (
+            "1", "true", "yes", "on",
+        ):
+            return {}
         try:
             from aws_services.cognito_service import cognito_service, is_cognito_enabled
 

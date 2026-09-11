@@ -28,6 +28,11 @@ pgvector>=0.2.5
 # Image handling - required by Django's ImageField for profile photos
 pillow>=10.2.0
 
+# Fast password hashing (Argon2id) - preferred PASSWORD_HASHERS entry.
+# Cuts login verify time from ~1s (PBKDF2-870k) to ~0.1-0.2s on cloud CPUs.
+# Ships wheels for Linux/Windows; no system packages required.
+argon2-cffi>=23.1.0
+
 # AWS integrations (Cognito, S3, SES/SNS, CloudWatch, Secrets Manager).
 # All wrapped with graceful fallbacks in aws_services/ so local development works
 # without credentials.

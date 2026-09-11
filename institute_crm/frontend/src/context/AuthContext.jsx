@@ -42,7 +42,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const res = await api.post('/accounts/auth/login/', { username, password });
+      // 60s timeout (not the global 15s): on a cold Render instance the first
+      // request boots the container (~30-50s). Failing fast here would turn
+      // every cold start into a false "login failed".
+      const res = await api.post('/accounts/auth/login/', { username, password }, { timeout: 60000 });
       const userData = res.data.user;
       const accessToken = res.data.access;
 

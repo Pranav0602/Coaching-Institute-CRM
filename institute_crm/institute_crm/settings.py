@@ -262,6 +262,18 @@ else:
 # ---------------------------------------------------------------------------
 # Authentication
 # ---------------------------------------------------------------------------
+# Argon2id is the preferred hasher: ~5-10x faster to verify than PBKDF2-870k
+# on shared cloud CPUs (the dominant cost on the login path) and stronger.
+# Existing PBKDF2 hashes keep verifying untouched and are transparently
+# re-hashed to Argon2 on the user's next login (see
+# `AuthService._authenticate`'s upgrade setter). Requires `argon2-cffi`.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

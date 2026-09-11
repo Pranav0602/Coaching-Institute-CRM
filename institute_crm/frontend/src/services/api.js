@@ -80,13 +80,17 @@ api.interceptors.response.use(
 // API sleeps on Render after ~15min idle; firing this when the landing/login
 // page mounts (and on first input focus) means the container is already warm
 // by the time the user clicks "Sign In". Never throws - failures are silent.
+//
+// The timeout is deliberately generous (50s): on a cold instance this single
+// ping absorbs the whole container boot while the user is still typing, so
+// the later login POST lands warm. It never blocks UI.
 export const warmBackend = () => {
   try {
     // /healthz lives at the API root, not under /api/v1, and performs no DB I/O.
     const rootBase = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
     const url = `${rootBase}/healthz/`;
-    // Plain axios (no interceptors) + short timeout so this never blocks UI.
-    return axios.get(url, { timeout: 8000 }).catch(() => null);
+    // Plain axios (no interceptors) so this never blocks UI.
+    return axios.get(url, { timeout: 50000 }).catch(() => null);
   } catch {
     return Promise.resolve(null);
   }

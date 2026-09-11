@@ -21,9 +21,14 @@ services:
     region: singapore # closest to ap-south-1 for AWS; change as needed
     rootDir: institute_crm
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn institute_crm.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 60
+    # 2 gthread workers x 4 threads: faster cold boot and far less RAM than
+    # 4 prefork workers on a Starter instance, while still serving concurrent
+    # warmup + login + API traffic.
+    startCommand: gunicorn institute_crm.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --workers 2 --threads 4 --timeout 60
     healthCheckPath: /healthz/
-    autoDeploy: false
+    # Auto-deploy so backend optimisations actually reach production on push.
+    # (Was `false`: pushes updated git but production kept serving old code.)
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.0
