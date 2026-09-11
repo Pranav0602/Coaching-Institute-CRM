@@ -42,8 +42,6 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Branch Management', icon: <School />, path: '/branches' },
           { text: 'Lead Management CRM', icon: <SupportAgent />, path: '/leads' },
           { text: 'Academic Courses', icon: <MenuBook />, path: '/courses' },
-          { text: 'Create Course', icon: <MenuBook />, path: '/create-course' },
-          { text: 'Create Batch', icon: <School />, path: '/create-batch' },
           { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
           { text: 'User Access & Roles', icon: <People />, path: '/users' },
           { text: 'Financial Accounts', icon: <AttachMoney />, path: '/finance' },

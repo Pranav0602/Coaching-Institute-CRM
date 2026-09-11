@@ -27,6 +27,7 @@ import { FollowUpsPage } from './pages/FollowUpsPage';
 import { LeadConversionPage } from './pages/LeadConversionPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { RagAssistantWidget } from './components/rag/RagAssistantWidget';
 
 // Dashboards
@@ -101,8 +102,23 @@ const AppContent = () => {
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/teachers" element={<TeachersPage />} />
             <Route path="/timetable" element={<TimetablePage />} />
-            <Route path="/create-course" element={<CreateCoursePage />} />
-            <Route path="/create-batch" element={<CreateBatchPage />} />
+            <Route
+              path="/create-course"
+              element={
+                <RequireRole allowed={[ROLES.BRANCH_ADMIN]}>
+                  <CreateCoursePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/create-batch"
+              element={
+                <RequireRole allowed={[ROLES.BRANCH_ADMIN]}>
+                  <CreateBatchPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
             <Route path="/materials" element={<MaterialsPage />} />

@@ -18,9 +18,23 @@ class Notification(BaseModel):
         ('IN_APP', 'In-App'),
         ('SMS', 'SMS'),
         ('EMAIL', 'Email'),
+        ('ALL', 'All Channels'),
+    ]
+
+    TARGET_AUDIENCE_CHOICES = [
+        ('STUDENTS', 'Students'),
+        ('PARENTS', 'Parents'),
+        ('ALL', 'Students & Parents'),
     ]
 
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications'
+    )
+    batch = models.ForeignKey(
+        'academics.Batch', on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications'
+    )
+    target_audience = models.CharField(max_length=20, choices=TARGET_AUDIENCE_CHOICES, default='STUDENTS')
     title = models.CharField(max_length=200)
     message = models.TextField()
     channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default='IN_APP')

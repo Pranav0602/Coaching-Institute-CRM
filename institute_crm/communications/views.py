@@ -10,7 +10,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from communications.models import Announcement, Notification
-from communications.serializers import AnnouncementSerializer, NotificationSerializer
+from communications.serializers import (
+    AnnouncementSerializer,
+    NotificationSerializer,
+    SendBatchNotificationSerializer,
+)
 from communications.services import CommunicationService
 
 
@@ -47,3 +51,38 @@ class NotificationViewSet(viewsets.ModelViewSet):
             notification_id=pk
         )
         return Response({"status": "marked as read", "id": str(notif.id)})
+
+    @action(detail=False, methods=['post'], url_path='send-batch')
+    def send_batch(self, request):
+        serializer = SendBatchNotificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = CommunicationService.send_batch_notification(
+            actor=request.user,
+            batch_id=serializer.validated_data['batch_id'],
+            title=serializer.validated_data['title'],
+            message=serializer.validated_data['message'],
+            channel=serializer.validated_data.get('channel', 'IN_APP'),
+            target_audience=serializer.validated_data.get('target_audience', 'STUDENTS'),
+        )
+        return Response(result, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def unread_count(self, request):
+        return Response({'unread_count': CommunicationService.get_unread_count(request.user)})
+
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        updated = CommunicationService.mark_all_read(request.user)
+        return Response({'status': 'all marked as read', 'updated': updated})
+
+    @action(detail=False, methods=['get'], url_path='sent')
+    def sent(self, request):
+        qs = Notification.objects.filter(
+            is_deleted=False, sender=request.user
+        ).select_related('batch', 'recipient').order_by('-created_at')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
