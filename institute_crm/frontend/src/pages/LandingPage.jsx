@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { warmBackend } from '../services/api';
 import {
   Box, Container, Typography, Button, Grid, Card, CardMedia, CardContent, Chip, Stack,
   Divider, Avatar, Paper, IconButton, Drawer, List, ListItem, ListItemText, AppBar, Toolbar, Menu, MenuItem, Link as MuiLink
@@ -98,6 +99,12 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [courseAnchor, setCourseAnchor] = useState(null);
   const [serviceAnchor, setServiceAnchor] = useState(null);
+
+  // Pre-warm the sleeping Render backend while the visitor reads the landing
+  // page, so the login that follows is already warm.
+  useEffect(() => {
+    warmBackend();
+  }, []);
 
   const scrollTo = (id) => {
     setMobileOpen(false);

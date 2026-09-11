@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AppBar, Toolbar, Typography, IconButton, Box, Avatar, Menu, MenuItem, 
-  Chip, Tooltip, Select, FormControl, InputLabel, Divider
+  AppBar, Toolbar, Typography, IconButton, Box, Avatar, Menu, MenuItem,
+  Chip, Tooltip, Divider
 } from '@mui/material';
 import {
-  Menu as MenuIcon, Brightness4, Brightness7, Notifications, 
-  AccountCircle, ExitToApp, Shield, Person
+  Menu as MenuIcon, Brightness4, Brightness7, Notifications,
+  ExitToApp, Person
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../../context/AuthContext';
 
 export const Navbar = ({ onToggleSidebar }) => {
-  const { user, activeRole, switchRole, logout, themeMode, toggleTheme } = useAuth();
+  const { user, activeRole, logout, themeMode, toggleTheme } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
@@ -35,6 +35,8 @@ export const Navbar = ({ onToggleSidebar }) => {
   };
 
   const avatarUrl = user?.profile_photo_url || user?.profile_picture;
+  // Production role display: always the server-assigned role, never switchable.
+  const displayRole = user?.role_code || activeRole;
 
   return (
     <AppBar position="sticky" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', backgroundColor: 'background.paper' }}>
@@ -55,22 +57,6 @@ export const Navbar = ({ onToggleSidebar }) => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Quick Role Switcher for Demo */}
-          <FormControl size="small" sx={{ minWidth: 160, display: { xs: 'none', md: 'block' } }}>
-            <Select
-              value={activeRole}
-              onChange={(e) => switchRole(e.target.value)}
-              sx={{ borderRadius: 2, fontSize: '0.85rem' }}
-              startAdornment={<Shield sx={{ fontSize: 18, mr: 1, color: 'primary.main' }} />}
-            >
-              {Object.entries(roleLabels).map(([code, label]) => (
-                <MenuItem key={code} value={code}>
-                  {label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
           <Tooltip title="Toggle Dark/Light Mode">
             <IconButton onClick={toggleTheme} color="inherit">
               {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
@@ -100,7 +86,7 @@ export const Navbar = ({ onToggleSidebar }) => {
                 {user?.first_name || 'User'} {user?.last_name || ''}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {roleLabels[activeRole] || 'Staff'}
+                {roleLabels[displayRole] || 'Staff'}
               </Typography>
             </Box>
           </Box>

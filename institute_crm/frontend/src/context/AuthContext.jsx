@@ -25,6 +25,17 @@ export const AuthProvider = ({ children }) => {
   });
   const [themeMode, setThemeMode] = useState('dark');
 
+  // The server-assigned role is authoritative. Keep activeRole mirrored to it
+  // so no stale/testing role can linger after login or page reload.
+  useEffect(() => {
+    const serverRole = user?.role_code;
+    if (serverRole && serverRole !== activeRole) {
+      setActiveRole(serverRole);
+      localStorage.setItem('active_role', serverRole);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role_code]);
+
   const toggleTheme = () => {
     setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
@@ -79,12 +90,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const switchRole = (newRole) => {
-    setActiveRole(newRole);
-    localStorage.setItem('active_role', newRole);
-    if (user) {
-      const updated = { ...user, role_code: newRole };
-      setUser(updated);
-      localStorage.setItem('user', JSON.stringify(updated));
+    // Deprecated testing hook: retained only so older imports don't crash.
+    // Production UI no longer exposes role switching; the server role wins.
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[AuthContext] switchRole() is deprecated and has no effect in production.');
     }
   };
 

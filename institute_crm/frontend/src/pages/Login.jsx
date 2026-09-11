@@ -8,11 +8,11 @@ import {
   Lock, Person, Shield, School, Email, CheckCircle, Visibility,
   VisibilityOff, Key, ArrowBack, AutoGraph, Assessment, People, ReceiptLong, SmartToy, AutoAwesome
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../context/AuthContext';
-import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import api, { warmBackend } from '../services/api';
 
 export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
-  const { login, switchRole } = useAuth();
+  const { login } = useAuth();
   
   // Open AI Assistant helper
   const handleOpenAiAssistant = (initialQuery) => {
@@ -28,6 +28,24 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [showSlowHint, setShowSlowHint] = useState(false);
+
+  // Pre-warm the Render backend the moment the form mounts so the container
+  // is already awake by the time credentials are submitted (cold starts can
+  // otherwise cost 30-50s on the free tier).
+  useEffect(() => {
+    warmBackend();
+  }, []);
+
+  // Reassure the user when auth takes longer than a warm request should.
+  useEffect(() => {
+    if (!isSubmitting) {
+      setShowSlowHint(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setShowSlowHint(true), 1500);
+    return () => clearTimeout(timer);
+  }, [isSubmitting]);
 
   // Auto populate saved username on mount
   useEffect(() => {
@@ -59,22 +77,17 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
       } else {
         localStorage.removeItem('crm_remembered_username');
       }
-      await login(username, password);
+      // AuthContext.login() resolves to { success, error } instead of throwing
+      // for credential failures, so the return value must be inspected.
+      const result = await login(username, password);
+      if (!result?.success) {
+        setLoginError(result?.error || 'Login failed. Please check your credentials.');
+      }
     } catch (err) {
-      setLoginError(err?.response?.data?.detail || 'Login failed. Please check your credentials.');
+      setLoginError(err?.response?.data?.detail || err?.detail || 'Login failed. Please check your credentials.');
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickLogin = (roleCode, userStr) => {
-    switchRole(roleCode);
-    setUsername(userStr);
-    setPassword('Admin@123');
-    if (rememberMe) {
-      localStorage.setItem('crm_remembered_username', userStr);
-    }
-    login(userStr, 'Admin@123');
   };
 
   // Open Forgot Modal
@@ -301,7 +314,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
           </Box>
         </Grid>
 
-        {/* Right Side: Full-Screen Form & Quick Role Login */}
+        {/* Right Side: Full-Screen Form */}
         <Grid
           item
           xs={12}
@@ -346,6 +359,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
                   fullWidth
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onFocus={() => warmBackend()}
                   InputProps={{ startAdornment: <Person sx={{ mr: 1, color: 'text.secondary' }} /> }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
@@ -429,6 +443,11 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
                 >
                   {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Sign In to Dashboard'}
                 </Button>
+                {isSubmitting && showSlowHint && (
+                  <Alert severity="info" sx={{ borderRadius: 2, bgcolor: 'rgba(129, 140, 248, 0.12)', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
+                    Connecting to cloud server… (waking up instance, this can take up to ~30s after idle)
+                  </Alert>
+                )}
               </Stack>
             </form>
 
@@ -480,49 +499,6 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
                 Submit Course & Admission Enquiry Form
               </Button>
             </Stack>
-
-            {/* Quick Role Shortcuts Accordion / Chip Area */}
-            <Box sx={{ mt: 3.5, pt: 2.5, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, color: '#fff' }}>
-                <Shield sx={{ fontSize: 18, color: '#818CF8' }} /> Quick Role Shortcuts (Demo Auto-Fill)
-              </Typography>
-
-              <Grid container spacing={1}>
-                {[
-                  { label: 'Super Admin', role: ROLES.SUPER_ADMIN, user: 'admin', color: '#6366F1' },
-                  { label: 'Branch Admin', role: ROLES.BRANCH_ADMIN, user: 'branchadmin', color: '#0EA5E9' },
-                  { label: 'Counselor', role: ROLES.ADMISSION_COUNSELOR, user: 'counselor', color: '#EC4899' },
-                  { label: 'Teacher', role: ROLES.TEACHER, user: 'teacher', color: '#10B981' },
-                  { label: 'Student', role: ROLES.STUDENT, user: 'student', color: '#F59E0B' },
-                  { label: 'Parent', role: ROLES.PARENT, user: 'parent', color: '#8B5CF6' },
-                  { label: 'Accountant', role: ROLES.ACCOUNTANT, user: 'accountant', color: '#14B8A6' },
-                  { label: 'Receptionist', role: ROLES.RECEPTIONIST, user: 'receptionist', color: '#F43F5E' },
-                ].map((item) => (
-                  <Grid item xs={6} sm={4} key={item.role}>
-                    <Chip
-                      label={item.label}
-                      size="small"
-                      onClick={() => handleQuickLogin(item.role, item.user)}
-                      sx={{
-                        width: '100%',
-                        justify: 'center',
-                        cursor: 'pointer',
-                        bgcolor: 'rgba(255,255,255,0.05)',
-                        color: 'rgba(255,255,255,0.85)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        '&:hover': {
-                          bgcolor: item.color,
-                          color: '#fff',
-                          borderColor: item.color
-                        }
-                      }}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
           </Box>
         </Grid>
       </Grid>

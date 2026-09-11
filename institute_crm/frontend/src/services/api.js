@@ -76,4 +76,23 @@ api.interceptors.response.use(
   }
 );
 
+// Lightweight backend pre-warming ping. The SPA is served from Vercel while the
+// API sleeps on Render after ~15min idle; firing this when the landing/login
+// page mounts (and on first input focus) means the container is already warm
+// by the time the user clicks "Sign In". Never throws - failures are silent.
+export const warmBackend = () => {
+  try {
+    // /healthz lives at the API root, not under /api/v1, and performs no DB I/O.
+    const rootBase = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+    const url = `${rootBase}/healthz/`;
+    // Plain axios (no interceptors) + short timeout so this never blocks UI.
+    return axios.get(url, { timeout: 8000 }).catch(() => null);
+  } catch {
+    return Promise.resolve(null);
+  }
+};
+
+// Backwards-compatible helper referenced in the optimisation plan.
+api.warmup = warmBackend;
+
 export default api;

@@ -18,13 +18,15 @@ from __future__ import annotations
 
 import logging
 import secrets
+import threading
 from typing import Any
 
 from django.conf import settings
-from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -47,6 +49,41 @@ class AuthService:
     # ------------------------------------------------------------------ login
 
     @staticmethod
+    def _record_audit_async(**kwargs: Any) -> None:
+        """Fire-and-forget audit write so auth responses never wait on the INSERT.
+
+        Runs :func:`institute_crm.audit.record_audit` on a daemon thread with its
+        own DB connection. Audit already swallows its own errors; this only adds
+        that a slow audit sink cannot add 200-500ms to login latency.
+        """
+
+        def _write() -> None:
+            from django.db import connection
+
+            try:
+                # Drop any inherited (and unusable across threads) connection
+                # so this thread opens a fresh one.
+                connection.close()
+                audit.record_audit(**kwargs)
+            except Exception:  # pragma: no cover - record_audit never raises
+                logger.warning("Async audit write failed", exc_info=True)
+            finally:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+        thread = threading.Thread(target=_write, daemon=True, name="audit-login")
+        try:
+            # Inside an explicit transaction (e.g. tests wrapping each case in
+            # an atomic block) defer the spawn until commit, so the background
+            # connection can actually see the actor row. Outside a transaction
+            # (normal production login) this fires immediately.
+            transaction.on_commit(thread.start)
+        except Exception:  # pragma: no cover - defensive fallback
+            thread.start()
+
+    @staticmethod
     def login(*, username: str, password: str, ip_address: str | None = None) -> dict[str, Any]:
         """Authenticate and return tokens plus the user record.
 
@@ -58,8 +95,8 @@ class AuthService:
         if user is None:
             # Recorded without the supplied password, and with the attempted identifier
             # truncated, so the trail is useful for brute-force detection but not itself
-            # a credential leak.
-            audit.record_audit(
+            # a credential leak. Async: must not delay the 401 response.
+            AuthService._record_audit_async(
                 actor=None,
                 action=audit.LOGIN_FAILED,
                 model_name="User",
@@ -70,7 +107,7 @@ class AuthService:
             raise AuthenticationFailed("Invalid username/email or password.")
 
         if user.is_deleted or not user.is_active:
-            audit.record_audit(
+            AuthService._record_audit_async(
                 actor=None,
                 action=audit.LOGIN_FAILED,
                 instance=user,
@@ -83,7 +120,7 @@ class AuthService:
         tokens = AuthService.issue_tokens(user)
         cognito_tokens = AuthService._sync_cognito_login(username=username, password=password)
 
-        audit.record_audit(
+        AuthService._record_audit_async(
             actor=user,
             action=audit.LOGIN,
             instance=user,
@@ -96,21 +133,37 @@ class AuthService:
 
     @staticmethod
     def _authenticate(*, username: str, password: str) -> User | None:
-        """Resolve credentials against username first, then email."""
-        user = authenticate(username=username, password=password)
-        if user is not None:
-            return user
+        """Resolve credentials with a single DB query and a single password hash.
 
-        # Email fallback. `filter().first()` rather than `get()` because duplicate emails
-        # are not prevented by the schema; the oldest match wins deterministically.
+        The previous implementation called ``django.contrib.auth.authenticate``
+        first (one DB lookup + one PBKDF2), then on miss queried by email and
+        called ``authenticate`` again (second PBKDF2 plus Django's dummy hash
+        for the initial miss). On throttled cloud CPUs that doubled auth cost.
+
+        Now: one indexed ``Q(username__iexact=...) | Q(email__iexact=...)``
+        query with ``select_related('role', 'branch')`` so the serializer that
+        follows needs zero extra queries, then exactly one
+        ``check_password``. When no candidate exists a single dummy
+        ``make_password`` preserves constant-time behaviour against account
+        enumeration.
+        """
         candidate = (
-            User.objects.filter(email__iexact=username, is_deleted=False)
+            User.objects.select_related("role", "branch")
+            .filter(
+                Q(username__iexact=username) | Q(email__iexact=username),
+                is_deleted=False,
+            )
             .order_by("date_joined")
             .first()
         )
         if candidate is None:
+            # Burn one hash so "unknown user" takes ~as long as "wrong
+            # password" and cannot be used for enumeration via timing.
+            make_password(password)
             return None
-        return authenticate(username=candidate.username, password=password)
+        if not candidate.check_password(password):
+            return None
+        return candidate
 
     @staticmethod
     def issue_tokens(user: User) -> dict[str, str]:
