@@ -51,7 +51,9 @@ class TimetableService:
 
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
-            queryset = queryset.filter(teacher_id=actor.pk)
+            queryset = queryset.filter(
+                Q(teacher_id=actor.pk) | Q(batch__teachers=actor)
+            ).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(
                 batch__enrolments__student_id=actor.pk,

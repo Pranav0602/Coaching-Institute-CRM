@@ -26,7 +26,15 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             self.request.user,
             batch_id=self.request.query_params.get('batch_id'),
             subject_id=self.request.query_params.get('subject_id'),
+            branch_id=self.request.query_params.get('branch_id'),
         )
+
+    @action(detail=False, methods=['get'], url_path='batch-report')
+    def batch_report(self, request):
+        batch_id = request.query_params.get('batch_id')
+        if not batch_id:
+            return Response({"detail": "batch_id query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(AssignmentService.batch_assignment_report(request.user, str(batch_id)))
 
     def perform_create(self, serializer):
         AssignmentService.create_assignment(
@@ -44,6 +52,8 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             self.request.user,
             assignment_id=self.request.query_params.get('assignment_id'),
             student_id=self.request.query_params.get('student_id'),
+            batch_id=self.request.query_params.get('batch_id'),
+            branch_id=self.request.query_params.get('branch_id'),
         )
 
     def perform_create(self, serializer):
@@ -78,7 +88,15 @@ class ExamViewSet(viewsets.ModelViewSet):
             self.request.user,
             batch_id=self.request.query_params.get('batch_id'),
             subject_id=self.request.query_params.get('subject_id'),
+            branch_id=self.request.query_params.get('branch_id'),
         )
+
+    @action(detail=False, methods=['get'], url_path='batch-report')
+    def batch_report(self, request):
+        batch_id = request.query_params.get('batch_id')
+        if not batch_id:
+            return Response({"detail": "batch_id query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ExamService.batch_exam_report(request.user, str(batch_id)))
 
     def perform_create(self, serializer):
         ExamService.create_exam(
@@ -123,4 +141,6 @@ class ResultViewSet(viewsets.ModelViewSet):
             self.request.user,
             exam_id=self.request.query_params.get('exam_id'),
             student_id=self.request.query_params.get('student_id'),
+            batch_id=self.request.query_params.get('batch_id'),
+            branch_id=self.request.query_params.get('branch_id'),
         )

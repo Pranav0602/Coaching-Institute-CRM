@@ -78,6 +78,15 @@ class BatchSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source="branch.name", read_only=True)
     enrolled_count = serializers.SerializerMethodField()
     seats_available = serializers.SerializerMethodField()
+    teachers = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.objects.filter(is_deleted=False, is_active=True),
+        required=False,
+    )
+    teacher_details = serializers.SerializerMethodField()
+    teacher_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, write_only=True
+    )
 
     class Meta:
         model = Batch
@@ -94,6 +103,9 @@ class BatchSerializer(serializers.ModelSerializer):
             "max_capacity",
             "enrolled_count",
             "seats_available",
+            "teachers",
+            "teacher_details",
+            "teacher_ids",
         ]
         extra_kwargs = {
             # BatchService.create_batch imposes the caller's branch; a super admin must name
@@ -109,6 +121,35 @@ class BatchSerializer(serializers.ModelSerializer):
         if enrolled is None:
             return None
         return max(obj.max_capacity - enrolled, 0)
+
+    def get_teacher_details(self, obj):
+        teachers = getattr(obj, "teachers", None)
+        if teachers is None:
+            return []
+        try:
+            qs = teachers.all()
+        except Exception:
+            qs = teachers
+        details = []
+        for teacher in qs:
+            details.append(
+                {
+                    "id": str(teacher.pk),
+                    "name": teacher.get_full_name() or teacher.username,
+                    "email": teacher.email,
+                }
+            )
+        return details
+
+    def validate(self, attrs):
+        # Merge `teachers` and `teacher_ids` aliases into `teacher_ids` for the service.
+        teacher_ids = attrs.pop("teacher_ids", None)
+        teachers = attrs.pop("teachers", None)
+        if teacher_ids is not None:
+            attrs["teacher_ids"] = [str(t) for t in teacher_ids]
+        elif teachers is not None:
+            attrs["teacher_ids"] = [str(getattr(t, "pk", t)) for t in teachers]
+        return attrs
 
 
 class CourseEnrolmentSerializer(serializers.ModelSerializer):
@@ -203,6 +244,9 @@ class LectureSerializer(serializers.ModelSerializer):
         source="timetable.teacher.get_full_name", read_only=True
     )
     day_of_week = serializers.CharField(source="timetable.day_of_week", read_only=True)
+    conducted_by_name = serializers.CharField(
+        source="conducted_by.get_full_name", read_only=True
+    )
 
     class Meta:
         model = Lecture
@@ -217,7 +261,10 @@ class LectureSerializer(serializers.ModelSerializer):
             "date",
             "topic",
             "status",
+            "conducted_by",
+            "conducted_by_name",
         ]
+        extra_kwargs = {"conducted_by": {"required": False}}
 
 
 class LectureGenerateSerializer(serializers.Serializer):

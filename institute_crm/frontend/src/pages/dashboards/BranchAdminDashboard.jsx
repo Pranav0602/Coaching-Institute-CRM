@@ -144,6 +144,21 @@ export const BranchAdminDashboard = () => {
         </Table>
       </Card>
 
+      {/* Batch Progress Quick Pulse */}
+      <Card sx={{ p: 2.5, mb: 3, borderLeft: '4px solid #6366F1' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Batch Progress Quick Pulse</Typography>
+            <Typography variant="body2" color="text.secondary">Monitor timeline, faculty coverage, at-risk students, assignments and exams.</Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" href="/batches">Open Batches Progress</Button>
+            <Button variant="outlined" href="/assignments">Assignments</Button>
+            <Button variant="outlined" href="/exams">Exams</Button>
+          </Stack>
+        </Box>
+      </Card>
+
       <Card sx={{ p: 2.5, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Today's Branch Lecture Schedule</Typography>
         <Table>

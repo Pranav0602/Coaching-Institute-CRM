@@ -84,7 +84,10 @@ class LectureService:
 
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
-            queryset = queryset.filter(timetable__teacher_id=actor.pk)
+            queryset = queryset.filter(
+                Q(timetable__teacher_id=actor.pk)
+                | Q(timetable__batch__teachers=actor)
+            ).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(
                 timetable__batch__enrolments__student_id=actor.pk,
@@ -374,19 +377,31 @@ class LectureService:
             )
 
     @staticmethod
+    def _is_batch_teacher(actor: User, slot: Timetable) -> bool:
+        from academics.models import Batch as _Batch
+
+        try:
+            return _Batch.objects.filter(pk=slot.batch_id, teachers__pk=actor.pk).exists()
+        except Exception:
+            return False
+
+    @staticmethod
     def _assert_may_manage_slot(actor: User, slot: Timetable) -> None:
         assert_same_branch(
             actor,
-            slot.batch.branch_id,
+            slot.batch.branch_id if hasattr(slot, "batch") and slot.batch else getattr(slot, "batch_id", None),
             message="That lecture belongs to another branch.",
         )
-        if actor.role_code == Role.TEACHER and slot.teacher_id != actor.pk:
-            from institute_crm.exceptions import PermissionDeniedError
+        if actor.role_code == Role.TEACHER:
+            is_slot_teacher = (slot.teacher_id == actor.pk)
+            is_batch_teacher = LectureService._is_batch_teacher(actor, slot)
+            if not (is_slot_teacher or is_batch_teacher):
+                from institute_crm.exceptions import PermissionDeniedError
 
-            raise PermissionDeniedError(
-                "You can only manage lectures for sessions you are timetabled to teach.",
-                code="not_your_session",
-            )
+                raise PermissionDeniedError(
+                    "You are not assigned to teach or substitute for this batch.",
+                    code="not_your_session",
+                )
 
 
 class AttendanceService:
@@ -414,7 +429,10 @@ class AttendanceService:
 
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
-            queryset = queryset.filter(lecture__timetable__teacher_id=actor.pk)
+            queryset = queryset.filter(
+                Q(lecture__timetable__teacher_id=actor.pk)
+                | Q(lecture__timetable__batch__teachers=actor)
+            ).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(student_id=actor.pk)
         elif role == Role.PARENT:
@@ -571,7 +589,14 @@ class AttendanceService:
 
         if complete_lecture and lecture.status != LECTURE_COMPLETED:
             lecture.status = LECTURE_COMPLETED
-            lecture.save(update_fields=["status"])
+        # Track who actually conducted the lecture (supports substitutes).
+        lecture.conducted_by = actor
+        try:
+            lecture.save(update_fields=["status", "conducted_by"] if complete_lecture else ["conducted_by"])
+        except Exception:
+            # Fallback if conducted_by column is not yet migrated in some env.
+            if complete_lecture and lecture.status == LECTURE_COMPLETED:
+                lecture.save(update_fields=["status"])
 
         tally = {}
         for entry in cleaned.values():
@@ -850,10 +875,13 @@ class AttendanceService:
             lecture.timetable.batch.branch_id,
             message="That lecture belongs to another branch.",
         )
-        if actor.role_code == Role.TEACHER and lecture.timetable.teacher_id != actor.pk:
-            from institute_crm.exceptions import PermissionDeniedError
+        if actor.role_code == Role.TEACHER:
+            is_slot_teacher = (lecture.timetable.teacher_id == actor.pk)
+            is_batch_teacher = LectureService._is_batch_teacher(actor, lecture.timetable)
+            if not (is_slot_teacher or is_batch_teacher):
+                from institute_crm.exceptions import PermissionDeniedError
 
-            raise PermissionDeniedError(
-                "You can only record attendance for sessions you are timetabled to teach.",
-                code="not_your_session",
-            )
+                raise PermissionDeniedError(
+                    "You are not assigned to teach or substitute for this batch.",
+                    code="not_your_session",
+                )

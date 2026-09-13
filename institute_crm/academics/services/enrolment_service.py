@@ -74,7 +74,8 @@ class EnrolmentService:
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
             queryset = queryset.filter(
-                batch__timetables__teacher_id=actor.pk, batch__timetables__is_deleted=False
+                Q(batch__timetables__teacher_id=actor.pk, batch__timetables__is_deleted=False)
+                | Q(batch__teachers=actor)
             ).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(student_id=actor.pk)

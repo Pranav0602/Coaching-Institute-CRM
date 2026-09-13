@@ -151,6 +151,44 @@ class BatchViewSet(ServiceBackedViewSet):
             )
         )
 
+    @action(detail=True, methods=["get"], url_path="progress")
+    def progress(self, request, pk=None):
+        """Full operational snapshot for one batch (timeline, faculty, 360 matrix)."""
+        return Response(BatchService.batch_progress(request.user, str(pk)))
+
+    @action(detail=False, methods=["get"], url_path="progress-summary")
+    def progress_summary(self, request):
+        """Lightweight progress summary across all visible batches."""
+        params = request.query_params
+        return Response(
+            BatchService.batches_progress_overview(
+                request.user,
+                course_id=params.get("course_id"),
+                branch_id=params.get("branch_id"),
+                status=params.get("status"),
+                search=params.get("search"),
+            )
+        )
+
+    @action(detail=True, methods=["post"], url_path="assign-teachers")
+    def assign_teachers(self, request, pk=None):
+        """Replace the assigned-teacher roster for a batch."""
+        batch = self.get_object()
+        teacher_ids = (
+            request.data.get("teacher_ids")
+            if isinstance(request.data, dict)
+            else None
+        )
+        if teacher_ids is None:
+            teacher_ids = request.data.get("teachers", [])
+        updated = BatchService.assign_teachers(
+            actor=request.user,
+            batch=batch,
+            teacher_ids=list(teacher_ids or []),
+            ip_address=self.ip,
+        )
+        return self.respond(updated)
+
 
 class CourseEnrolmentViewSet(ServiceBackedViewSet):
     """Student enrolments. Every invariant is enforced in ``EnrolmentService``."""

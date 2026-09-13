@@ -44,6 +44,12 @@ class Batch(BaseModel):
     start_date = models.DateField()
     end_date = models.DateField()
     max_capacity = models.PositiveIntegerField(default=40)
+    teachers = models.ManyToManyField(
+        User,
+        related_name='assigned_batches',
+        blank=True,
+        help_text="Teachers assigned to this cohort (primary, co-teachers, or substitutes)."
+    )
 
     def __str__(self):
         return f"Batch: {self.name} ({self.code}) - {self.branch.name}"
@@ -97,6 +103,14 @@ class Lecture(BaseModel):
     date = models.DateField(db_index=True)
     topic = models.CharField(max_length=200)
     status = models.CharField(max_length=20, default='SCHEDULED') # SCHEDULED, COMPLETED, CANCELLED
+    conducted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conducted_lectures',
+        help_text="Teacher who actually conducted the lecture and marked attendance (allows substitutes)."
+    )
 
     def __str__(self):
         return f"Lecture: {self.topic} on {self.date} [{self.timetable.batch.name}]"

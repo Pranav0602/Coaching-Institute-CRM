@@ -22,6 +22,7 @@ import { AttendancePage } from './pages/AttendancePage';
 import { AssignmentsPage } from './pages/AssignmentsPage';
 import { MaterialsPage } from './pages/MaterialsPage';
 import { ExamsPage } from './pages/ExamsPage';
+import { BatchProgressPage } from './pages/BatchProgressPage';
 import { PipelineStagePage } from './pages/pipeline/PipelineStagePage';
 import { FollowUpsPage } from './pages/FollowUpsPage';
 import { LeadConversionPage } from './pages/LeadConversionPage';
@@ -120,9 +121,31 @@ const AppContent = () => {
             />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
-            <Route path="/assignments" element={<AssignmentsPage />} />
+            <Route
+              path="/batches"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN]}>
+                  <BatchProgressPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/assignments"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.TEACHER, ROLES.STUDENT]}>
+                  <AssignmentsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/exams"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.TEACHER, ROLES.STUDENT]}>
+                  <ExamsPage />
+                </RequireRole>
+              }
+            />
             <Route path="/materials" element={<MaterialsPage />} />
-            <Route path="/exams" element={<ExamsPage />} />
             <Route path="/pipeline/:stage" element={<PipelineStagePage />} />
             <Route path="/followups" element={<FollowUpsPage />} />
             <Route path="/convert" element={<LeadConversionPage />} />

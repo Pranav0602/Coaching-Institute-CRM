@@ -187,6 +187,17 @@ export const SuperAdminDashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Batch Progress Quick Pulse */}
+      <Card sx={{ p: 2.5, mb: 3, borderLeft: '4px solid #6366F1' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Batch Progress Quick Pulse</Typography>
+            <Typography variant="body2" color="text.secondary">Timeline, attendance, assignments and exam health across all branches.</Typography>
+          </Box>
+          <Button variant="contained" href="/batches">Open Batches Progress</Button>
+        </Box>
+      </Card>
+
       {/* Multi-branch Table */}
       <Card sx={{ p: 2.5 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Branch Campus Performance Matrix</Typography>
