@@ -42,6 +42,7 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Branch Management', icon: <School />, path: '/branches' },
           { text: 'Lead Management CRM', icon: <SupportAgent />, path: '/leads' },
           { text: 'Academic Courses', icon: <MenuBook />, path: '/courses' },
+          { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
           { text: 'Batches Progress', icon: <School />, path: '/batches' },
           { text: 'Assignments & Submissions', icon: <Assignment />, path: '/assignments' },
           { text: 'Exams & Performance', icon: <Quiz />, path: '/exams' },
@@ -61,12 +62,14 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Exams & Performance', icon: <Quiz />, path: '/exams' },
           { text: 'Create Course', icon: <MenuBook />, path: '/create-course' },
           { text: 'Create Batch', icon: <School />, path: '/create-batch' },
+          { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
           { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
           { text: 'Branch Revenue', icon: <AttachMoney />, path: '/finance' },
         ];
       case ROLES.ADMISSION_COUNSELOR:
         return [
           { text: 'Counselling Desk', icon: <Dashboard />, path: '/' },
+          { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
           { text: 'Scheduled Follow-ups', icon: <EventNote />, path: '/followups' },
           { text: 'Lead Conversion', icon: <School />, path: '/convert' },
         ];

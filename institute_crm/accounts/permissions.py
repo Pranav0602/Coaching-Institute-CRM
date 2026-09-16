@@ -31,6 +31,27 @@ class IsBranchAdmin(BasePermission):
             request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN]
         ))
 
+class IsAdminOrCounselorReadOnly(BasePermission):
+    """
+    Full CRUD for SUPER_ADMIN / BRANCH_ADMIN (and superusers).
+    Read-only (GET/HEAD/OPTIONS) for ADMISSION_COUNSELOR on published docs.
+    All other roles / unauthenticated requests are rejected.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        role_code = getattr(user.role, "code", None) if getattr(user, "role", None) else None
+        if role_code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN]:
+            return True
+        if role_code == Role.ADMISSION_COUNSELOR:
+            return request.method in ("GET", "HEAD", "OPTIONS")
+        return False
+
+
 class IsAdmissionCounselor(BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role and (

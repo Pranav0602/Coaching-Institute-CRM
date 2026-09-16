@@ -59,6 +59,61 @@ class CourseViewSet(ServiceBackedViewSet):
         """Subject, batch and enrolment counts per course, in one aggregate query."""
         return Response(CourseService.catalogue_summary(request.user))
 
+    @action(detail=True, methods=["get"], url_path="syllabus")
+    def syllabus(self, request, pk=None):
+        """Direct syllabus document linked to a course by ID or code.
+
+        Looks up STUDY_GUIDE / COURSE_CATALOGUE KnowledgeDocuments whose
+        metadata_json.course_id matches the course id (or code), falling back
+        to a title/code content match. Non-admin callers only see published docs.
+        """
+        from django.db.models import Q
+        from rag.models import KnowledgeDocument
+        from rag.serializers import KnowledgeDocumentSerializer
+        from academics.models import Course as CourseModel
+        from accounts.models import Role as RoleModel
+        from institute_crm.utils import active
+
+        course = None
+        try:
+            course = active(CourseModel).get(pk=pk)
+        except Exception:
+            try:
+                course = active(CourseModel).get(code=str(pk).strip().upper().replace(" ", "_"))
+            except Exception:
+                try:
+                    course = active(CourseModel).get(code__iexact=str(pk).strip())
+                except Exception:
+                    course = None
+        if course is None:
+            return Response({"detail": "Course not found."}, status=404)
+
+        user = request.user
+        role_code = getattr(getattr(user, "role", None), "code", None)
+        is_admin = bool(
+            getattr(user, "is_superuser", False)
+            or role_code in [RoleModel.SUPER_ADMIN, RoleModel.BRANCH_ADMIN]
+        )
+        docs = KnowledgeDocument.objects.filter(
+            is_deleted=False,
+            category__in=["STUDY_GUIDE", "COURSE_CATALOGUE"],
+        )
+        if not is_admin:
+            docs = docs.filter(is_published=True)
+        doc = (
+            docs.filter(
+                Q(metadata_json__course_id=str(course.pk))
+                | Q(metadata_json__courseId=str(course.pk))
+                | Q(metadata_json__course_id=course.code)
+            ).order_by("-updated_at").first()
+            or docs.filter(
+                Q(title__icontains=course.title) | Q(title__icontains=course.code)
+            ).order_by("-updated_at").first()
+        )
+        if doc is None:
+            return Response({"detail": "No syllabus uploaded for this course yet."}, status=404)
+        return Response(KnowledgeDocumentSerializer(doc).data)
+
 
 class SubjectViewSet(ServiceBackedViewSet):
     serializer_class = SubjectSerializer

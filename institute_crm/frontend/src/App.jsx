@@ -28,6 +28,7 @@ import { FollowUpsPage } from './pages/FollowUpsPage';
 import { LeadConversionPage } from './pages/LeadConversionPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { CourseSyllabiPage } from './pages/CourseSyllabiPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { RagAssistantWidget } from './components/rag/RagAssistantWidget';
 
@@ -155,6 +156,14 @@ const AppContent = () => {
               element={
                 <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN]}>
                   <KnowledgeBasePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/course-syllabi"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.ADMISSION_COUNSELOR]}>
+                  <CourseSyllabiPage />
                 </RequireRole>
               }
             />

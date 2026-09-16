@@ -4,7 +4,7 @@ import {
   DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Stack, CircularProgress,
   Snackbar, Alert, Paper
 } from '@mui/material';
-import { Add, Refresh, ArrowForward } from '@mui/icons-material';
+import { Add, Refresh, ArrowForward, MenuBook } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { PIPELINE_STAGES, STAGE_COLORS, STAGE_DESCRIPTIONS } from '../../constants/pipeline';
@@ -116,6 +116,16 @@ export const CounsellingOverview = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
       ) : (
         <>
+          <Paper sx={{ p: 2.5, mb: 3, borderRadius: 3, borderLeft: '4px solid', borderLeftColor: 'secondary.main', display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <MenuBook color="secondary" />
+            <Box sx={{ flex: 1, minWidth: 220 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Course Syllabi Reference</Typography>
+              <Typography variant="body2" color="text.secondary">Answer curriculum, tools, duration & fee questions live on calls — 29 industry syllabi with copy-for-WhatsApp summaries.</Typography>
+            </Box>
+            <Button variant="contained" color="secondary" onClick={() => navigate('/course-syllabi')}>
+              Open Syllabi Hub
+            </Button>
+          </Paper>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
             Lead Pipeline <Chip label={totalLeads} size="small" color="primary" sx={{ ml: 1 }} />
           </Typography>
