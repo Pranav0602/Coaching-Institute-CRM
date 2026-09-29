@@ -36,6 +36,7 @@ from accounts.serializers import (
 )
 from accounts.services import AuthService, BranchService, UserService
 from institute_crm.audit import client_ip
+from institute_crm.exceptions import ValidationFailed
 
 
 def _bool_param(raw: str | None) -> bool | None:
@@ -67,8 +68,53 @@ class AuthLoginView(APIView):
                 "refresh": result["tokens"]["refresh"],
                 "cognito_tokens": result["cognito_tokens"],
                 "user": UserSerializer(result["user"], context={"request": request}).data,
+                **AuthService.token_lifetimes(),
             }
         )
+
+
+class TokenRefreshView(APIView):
+    """``POST /api/v1/accounts/auth/token/refresh/``
+
+    Redeems a refresh token for a new pair. The client can stay signed in for as
+    long as it keeps rotating; it never has to ask the user for credentials again.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            raise ValidationFailed(
+                "A refresh token is required.",
+                field_errors={"refresh": ["This field is required."]},
+            )
+
+        return Response(
+            AuthService.refresh_tokens(
+                refresh_token=str(refresh_token),
+                ip_address=client_ip(request),
+            )
+        )
+
+
+class LogoutView(APIView):
+    """``POST /api/v1/accounts/auth/logout/``
+
+    Blacklists the supplied refresh token. The access token is intentionally left
+    alone: it is stateless and short-lived relative to the session, and revoking it
+    would need a per-request check the authentication layer does not make.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        AuthService.logout(
+            refresh_token=request.data.get("refresh"),
+            user=request.user,
+            ip_address=client_ip(request),
+        )
+        return Response({"message": "Signed out."})
 
 
 class ForgotPasswordView(APIView):

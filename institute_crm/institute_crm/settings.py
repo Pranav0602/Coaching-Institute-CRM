@@ -148,6 +148,10 @@ INSTALLED_APPS = [
     # Third Party
     "rest_framework",
     "rest_framework_simplejwt",
+    # Ships its own OutstandingToken/BlacklistedToken tables. Required so that a
+    # rotated refresh token can be revoked, which is what makes mobile sessions
+    # (long-lived by design) actually terminable.
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 
     # Local Apps
@@ -286,7 +290,10 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_MINUTES", 480)),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_DAYS", 7)),
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": False,
+    # Rotating without blacklisting leaves every superseded refresh token valid
+    # forever, so a token lifted off a device could never be retired. With the
+    # blacklist app installed each rotation retires the token it replaces.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "UPDATE_LAST_LOGIN": True,
 }

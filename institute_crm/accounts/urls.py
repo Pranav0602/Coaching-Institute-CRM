@@ -7,11 +7,13 @@ from accounts.views import (
     BranchViewSet,
     ChangePasswordView,
     ForgotPasswordView,
+    LogoutView,
     MySessionActivityView,
     ProfilePhotoView,
     ProfileView,
     ResetPasswordView,
     RoleViewSet,
+    TokenRefreshView,
     UserMeView,
     UserViewSet,
 )
@@ -25,6 +27,8 @@ router.register(r'audit-logs', AuditLogViewSet, basename='auditlog')
 urlpatterns = [
     # Session
     path('auth/login/', AuthLoginView.as_view(), name='auth_login'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='auth_token_refresh'),
+    path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
     path('auth/me/', UserMeView.as_view(), name='auth_me'),
 
     # Credentials

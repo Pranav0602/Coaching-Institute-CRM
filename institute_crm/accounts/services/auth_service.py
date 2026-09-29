@@ -28,6 +28,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import User
@@ -205,6 +207,75 @@ class AuthService:
         refresh["branch_id"] = str(user.branch_id) if user.branch_id else ""
         refresh["username"] = user.username
         return {"access": str(refresh.access_token), "refresh": str(refresh)}
+
+    @staticmethod
+    def token_lifetimes() -> dict[str, int]:
+        """Token lifetimes in whole seconds, for clients that refresh proactively.
+
+        A native client should schedule its own refresh off ``access_expires_in``
+        rather than waiting to eat a 401, so a user never sees a spinner mid-screen.
+        """
+        return {
+            "access_expires_in": int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
+            "refresh_expires_in": int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
+        }
+
+    @staticmethod
+    def refresh_tokens(*, refresh_token: str, ip_address: str | None = None) -> dict[str, Any]:
+        """Exchange a refresh token for a fresh pair.
+
+        Rotation is on, so a rotated refresh token is returned alongside the new
+        access token and the token it replaced is blacklisted. Callers must persist
+        the returned ``refresh``; continuing to present the old one fails on the
+        next exchange.
+        """
+        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+        # SimpleJWT raises TokenError straight out of ``validate()`` for a
+        # malformed or blacklisted token, and TokenError is not a DRF exception -
+        # letting it escape would surface a 500 to a client that simply needs to
+        # be told to sign in again.
+        try:
+            is_valid = serializer.is_valid()
+        except TokenError as exc:
+            logger.info("Rejected refresh token: %s", exc)
+            is_valid = False
+        if not is_valid:
+            raise AuthenticationFailed(
+                "Your session has expired. Please sign in again.",
+                code="refresh_token_invalid",
+            )
+        data = dict(serializer.validated_data)
+
+        AuthService._record_audit_async(
+            actor=None,
+            action=audit.LOGIN,
+            changes={"method": "token_refresh"},
+            ip_address=ip_address,
+        )
+        logger.debug("Access token refreshed")
+        return {**data, **AuthService.token_lifetimes()}
+
+    @staticmethod
+    def logout(*, refresh_token: str | None, user: User, ip_address: str | None = None) -> None:
+        """Retire a refresh token so the session cannot be resurrected.
+
+        Best-effort by design: an already-expired, already-blacklisted or malformed
+        token still results in a successful logout, because the caller's intent is
+        to end the session, not to prove the token was real.
+        """
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except TokenError as exc:
+                logger.debug("Logout blacklist skipped: %s", exc)
+            except Exception as exc:  # noqa: BLE001 - logout must never fail
+                logger.warning("Could not blacklist refresh token on logout: %s", exc)
+        audit.record_audit(
+            actor=user,
+            action=audit.LOGOUT,
+            instance=user,
+            ip_address=ip_address,
+        )
 
     @staticmethod
     def _sync_cognito_login(*, username: str, password: str) -> dict[str, Any]:
