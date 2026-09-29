@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Graphix Techno CRM",
+    "slug": "institute-crm-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "graphix",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.graphixtechno.crm",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Use Face ID to unlock the Graphix CRM app without typing your password.",
+        "NSCameraUsageDescription": "Scan student ID cards to mark attendance and check in visitors.",
+        "NSPhotoLibraryUsageDescription": "Attach photos of homework and documents from your library.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.graphixtechno.crm",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Graphix CRM to scan student ID cards for attendance and visitor check-in.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#6366F1"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
