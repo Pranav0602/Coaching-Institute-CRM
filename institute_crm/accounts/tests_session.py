@@ -117,3 +117,58 @@ class TokenRefreshTests(TestCase):
         for _ in range(2):
             out = self.client.post(LOGOUT_URL, {'refresh': payload['refresh']}, format='json')
             self.assertEqual(out.status_code, 200)
+
+
+class TokenBlacklistConfigurationTests(TestCase):
+    """The switch that makes login depend on an extra table must stay coherent.
+
+    Enabling ``rest_framework_simplejwt.token_blacklist`` makes SimpleJWT write an
+    ``OutstandingToken`` row every time it issues a refresh token, including on an
+    ordinary login. A deploy that ships the code without the migration therefore
+    turns every sign-in into a 500, so both halves of the switch are pinned here
+    and the deploy check is exercised against both table states.
+    """
+
+    def test_switch_and_installed_apps_stay_in_step(self):
+        from django.conf import settings
+
+        self.assertEqual(
+            getattr(settings, "JWT_BLACKLIST", False),
+            "rest_framework_simplejwt.token_blacklist" in settings.INSTALLED_APPS,
+            'JWT_BLACKLIST and INSTALLED_APPS disagree; settings.py keeps them together',
+        )
+
+    def test_rotation_blacklisting_tracks_the_switch(self):
+        from django.conf import settings
+
+        self.assertEqual(
+            settings.SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"],
+            getattr(settings, "JWT_BLACKLIST", False),
+            "rotation without blacklisting leaves every superseded token valid forever",
+        )
+
+    def test_deploy_check_is_silent_when_the_tables_exist(self):
+        from institute_crm.checks import check_token_blacklist_migrated
+
+        self.assertEqual(check_token_blacklist_migrated(None), [])
+
+    def test_deploy_check_errors_when_the_tables_are_missing(self):
+        """The check that would have caught the production outage."""
+        from unittest.mock import MagicMock, patch
+
+        from institute_crm.checks import check_token_blacklist_migrated
+
+        cursor = MagicMock()
+        cursor.__enter__ = MagicMock(return_value=cursor)
+        cursor.__exit__ = MagicMock(return_value=False)
+        cursor.fetchone.return_value = (None,)  # to_regclass found nothing
+
+        with patch('institute_crm.checks.connections') as connections:
+            connections.__getitem__ = MagicMock(return_value=MagicMock(cursor=MagicMock(
+                return_value=cursor,
+            )))
+            messages = check_token_blacklist_migrated(None)
+
+        self.assertEqual(len(messages), 1, messages)
+        self.assertEqual(messages[0].id, 'crm.E004')
+        self.assertIn('migrate', messages[0].hint)

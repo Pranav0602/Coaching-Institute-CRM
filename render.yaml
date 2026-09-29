@@ -52,6 +52,13 @@ services:
         value: true
       - key: RAG_ENABLED
         value: false
+      # Token revocation. When true, rotating a refresh token retires the one it
+      # replaces. It requires the token_blacklist migrations, which build.sh
+      # applies; crm.E004 fails the build if they are missing, because without
+      # them every login would 500. Set to false to drop the per-login
+      # OutstandingToken write (sessions then expire rather than being revoked).
+      - key: JWT_BLACKLIST
+        value: "true"
       - key: COGNITO_ENABLED
         value: false # Django JWT auth only; no Cognito/LocalStack container needed
       - key: SECURE_SSL_REDIRECT

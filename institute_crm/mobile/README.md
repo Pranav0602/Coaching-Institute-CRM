@@ -87,6 +87,34 @@ instead of discovering expiry by eating a visible 401.
 blacklisting leaves every superseded refresh token valid forever, which matters
 much more now that a mobile session is long-lived by design.
 
+#### Deploying this: read this before you ship
+
+The blacklist app is gated on `JWT_BLACKLIST` (default `true`) because it is a
+**hard dependency of login**, not just of refresh. With it installed, SimpleJWT
+writes an `OutstandingToken` row every time it issues a refresh token — including
+during a plain sign-in — so a deploy that ships the code without running the
+migration makes **every login return 500**.
+
+That happened in production once already. Three things now prevent it recurring:
+
+| Guard | Effect |
+| --- | --- |
+| `crm.E004` system check (`deploy=True`) | System checks run on every `manage.py` command, including the `migrate` and `collectstatic` steps in `build.sh`, so this combination **fails the build** instead of reaching users. |
+| `scripts/check_token_blacklist.py`, called from `build.sh` | Prints one readable line into the deploy log and fails the build with an actionable message. Runnable by hand: `python scripts/check_token_blacklist.py` |
+| `JWT_BLACKLIST=false` | Escape hatch. Login stops depending on the table entirely, so sign-in is restored immediately without waiting for a migration. Sessions are then revoked by expiry only. |
+
+**If you ever see `relation "token_blacklist_outstandingtoken" does not exist`:**
+
+```bash
+# 1. Fastest: restore login without waiting for a migration.
+#    Render dashboard -> crm-backend -> Environment -> JWT_BLACKLIST=false -> Save.
+# 2. Proper fix: apply the migrations to the service database.
+python manage.py migrate
+```
+
+If `JWT_BLACKLIST=false` is used as a stopgap, remember to run `migrate` and flip
+it back to `true` afterwards — otherwise token revocation stays silently off.
+
 ---
 
 ## Structure

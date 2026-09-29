@@ -16,6 +16,7 @@ Error codes
 ``crm.E001``  Database engine is not PostgreSQL.
 ``crm.E002``  RAG is enabled but the ``vector`` extension is unavailable.
 ``crm.E003``  Insecure production configuration.
+``crm.E004``  Token revocation is enabled but its migrations have not been run.
 ``crm.W001``  Media root is not writable.
 ``crm.W002``  RAG embedding dimension looks inconsistent with the selected model.
 """
@@ -177,6 +178,64 @@ def check_production_configuration(app_configs, **kwargs) -> list[CheckMessage]:
             )
         )
     return messages
+
+
+@register(Tags.security, deploy=True)
+def check_token_blacklist_migrated(app_configs, **kwargs) -> list[CheckMessage]:
+    """Fail the build when token revocation is on but its tables are absent.
+
+    With ``rest_framework_simplejwt.token_blacklist`` installed, SimpleJWT writes
+    an ``OutstandingToken`` row every time it issues a refresh token — including
+    on an ordinary login. A deploy that ships the code without running the
+    migration therefore breaks *every* sign-in with a 500, and the only evidence
+    is a stack trace from a user who cannot get in.
+
+    System checks run on every ``manage.py`` command, including the ``migrate``
+    and ``collectstatic`` steps in ``build.sh``, so raising an error here stops
+    the deploy at the point it can still be fixed. ``deploy=True`` keeps it out
+    of the noisy output of routine local commands.
+    """
+    if not getattr(settings, "JWT_BLACKLIST", False):
+        return []
+    if "rest_framework_simplejwt.token_blacklist" not in settings.INSTALLED_APPS:
+        # JWT_BLACKLIST and INSTALLED_APPS disagree; settings.py keeps them in
+        # step, so this is unreachable in practice and is here to catch a future
+        # refactor that breaks the coupling.
+        return [
+            Error(
+                "JWT_BLACKLIST is on but rest_framework_simplejwt.token_blacklist "
+                "is not in INSTALLED_APPS.",
+                hint="Both are set together in settings.py; check nothing has "
+                "reordered or removed that logic.",
+                id="crm.E004",
+            )
+        ]
+
+    try:
+        with connections["default"].cursor() as cursor:
+            cursor.execute(
+                "SELECT to_regclass('public.token_blacklist_outstandingtoken')"
+            )
+            row = cursor.fetchone()
+    except OperationalError as exc:
+        # Unreachable database is a different problem, reported by crm.E001.
+        logger.warning("Could not verify the token_blacklist tables: %s", exc)
+        return []
+
+    if row and row[0]:
+        return []
+
+    return [
+        Error(
+            "JWT_BLACKLIST is on but the token_blacklist tables do not exist, so "
+            "every login will fail with a 500.",
+            hint="Run `python manage.py migrate` against the same database the "
+            "service uses, or set JWT_BLACKLIST=false to run without the "
+            "per-login OutstandingToken write (sessions are then revoked by "
+            "expiry only).",
+            id="crm.E004",
+        )
+    ]
 
 
 @register()

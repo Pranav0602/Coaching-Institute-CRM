@@ -148,10 +148,6 @@ INSTALLED_APPS = [
     # Third Party
     "rest_framework",
     "rest_framework_simplejwt",
-    # Ships its own OutstandingToken/BlacklistedToken tables. Required so that a
-    # rotated refresh token can be revoked, which is what makes mobile sessions
-    # (long-lived by design) actually terminable.
-    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 
     # Local Apps
@@ -164,6 +160,28 @@ INSTALLED_APPS = [
     "communications",
     "rag",
 ]
+
+#: Whether refresh-token rotation retires the token it replaces.
+#:
+#: Turning this on is what makes a session terminable: without it, every superseded
+#: refresh token stays valid until it expires on its own, so a token lifted off a
+#: handset could never be revoked.
+#:
+#: The cost is real and is the reason it is a switch rather than a constant. With
+#: ``rest_framework_simplejwt.token_blacklist`` installed, SimpleJWT writes an
+#: ``OutstandingToken`` row for *every* refresh token it issues — including on
+#: plain login — and login then cannot complete at all if that table is missing.
+#: A deploy that ships the code without the migration turns every sign-in into a
+#: 500, which is exactly that failure.
+#:
+#: ``crm.E004`` fails the build when this is on and the tables are absent, so the
+#: broken combination cannot reach production. Set ``JWT_BLACKLIST=false`` to run
+#: without the per-login write (sessions are then revoked only by expiry).
+JWT_BLACKLIST = env_bool("JWT_BLACKLIST", True)
+
+if JWT_BLACKLIST:
+    # Ships its own OutstandingToken/BlacklistedToken tables.
+    INSTALLED_APPS.append("rest_framework_simplejwt.token_blacklist")
 
 # drf_spectacular is optional; the API works without it.
 HAS_SPECTACULAR = importlib.util.find_spec("drf_spectacular") is not None
@@ -290,10 +308,10 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_MINUTES", 480)),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_DAYS", 7)),
     "ROTATE_REFRESH_TOKENS": True,
-    # Rotating without blacklisting leaves every superseded refresh token valid
-    # forever, so a token lifted off a device could never be retired. With the
-    # blacklist app installed each rotation retires the token it replaces.
-    "BLACKLIST_AFTER_ROTATION": True,
+    # Tied to JWT_BLACKLIST: rotation without blacklisting leaves every superseded
+    # refresh token valid forever, and blacklisting without the app installed is
+    # silently inert.
+    "BLACKLIST_AFTER_ROTATION": JWT_BLACKLIST,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "UPDATE_LAST_LOGIN": True,
 }
