@@ -6,11 +6,12 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 
 from accounts.models import User, Role
-from communications.models import Announcement, Notification
+from communications.models import Announcement, DeviceToken, Notification
 from aws_services.ses_sns_service import notification_service
 from institute_crm.exceptions import NotFoundError, PermissionDeniedError, ValidationFailed
 from institute_crm.scoping import is_global
@@ -76,6 +77,80 @@ class CommunicationService:
     @staticmethod
     def get_unread_count(actor: User) -> int:
         return CommunicationService.filter_notifications(actor, unread_only=True).count()
+
+    # ------------------------------------------------------- device tokens
+
+    @staticmethod
+    def filter_device_tokens(actor: User) -> QuerySet[DeviceToken]:
+        """Only the caller's own handsets. A user may never enumerate another's."""
+        return DeviceToken.objects.filter(is_deleted=False, user=actor).order_by('-updated_at')
+
+    @staticmethod
+    @transaction.atomic
+    def register_device(
+        actor: User,
+        *,
+        expo_push_token: str,
+        platform: str = 'android',
+        device_name: str = '',
+        app_version: str = '',
+    ) -> tuple[DeviceToken, bool]:
+        """Bind a push token to the caller, re-binding it if it changed hands.
+
+        Returns the token row and whether it was newly created, so the caller can
+        answer 201 vs 200. Expo re-sends the same token on every launch, which makes
+        this the app's most frequently hit write endpoint; it stays a single
+        indexed upsert rather than a select-then-insert race.
+        """
+        expo_push_token = (expo_push_token or '').strip()
+        if not expo_push_token:
+            raise ValidationFailed(
+                'A push token is required.',
+                field_errors={'expo_push_token': ['This field is required.']},
+            )
+
+        device, created = DeviceToken.objects.update_or_create(
+            expo_push_token=expo_push_token,
+            defaults={
+                'user': actor,
+                'platform': platform or 'android',
+                'device_name': device_name or '',
+                'app_version': app_version or '',
+                'is_active': True,
+                'is_deleted': False,
+            },
+        )
+        if created:
+            logger.info('Device %s registered for %s', device.pk, actor.username)
+        return device, created
+
+    @staticmethod
+    @transaction.atomic
+    def unregister_device(actor: User, device_id) -> DeviceToken:
+        """Retire a handset, scoping the lookup to the caller.
+
+        Scoped rather than unguarded: an unguessable primary key is not an
+        authorisation check, and returning 404 to a non-owner avoids confirming the
+        row exists.
+        """
+        device = None
+        try:
+            device = DeviceToken.objects.filter(pk=device_id, is_deleted=False, user=actor).first()
+        except (ValidationError, ValueError, TypeError):
+            # A malformed primary key is a miss, not a crash: filtering a UUIDField
+            # with junk raises rather than simply matching nothing.
+            device = None
+        if device is None:
+            raise NotFoundError('Device not found.', code='device_not_found')
+        device.is_active = False
+        device.save(update_fields=['is_active', 'version', 'updated_at'])
+        return device
+
+    @staticmethod
+    @transaction.atomic
+    def unregister_all_devices(actor: User) -> int:
+        """Sign-out cleanup so a shared handset stops delivering the old user's alerts."""
+        return DeviceToken.objects.filter(user=actor, is_active=True).update(is_active=False)
 
     @staticmethod
     @transaction.atomic

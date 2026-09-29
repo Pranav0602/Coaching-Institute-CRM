@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from institute_crm.utils import BaseModel
 from accounts.models import User, Branch, Role
 
@@ -42,3 +43,38 @@ class Notification(BaseModel):
 
     def __str__(self):
         return f"Notification to {self.recipient.username}: {self.title}"
+
+
+class DeviceToken(BaseModel):
+    """A push-notification handle for one physical install of the mobile app.
+
+    ``expo_push_token`` is unique across the whole table rather than per user on
+    purpose: a handset that is signed out and handed to the next user would
+    otherwise keep delivering the previous user's alerts. Re-registering the same
+    token reassigns it, which is what a shared-device kiosk install needs.
+    """
+
+    PLATFORM_CHOICES = [
+        ('ios', 'iOS'),
+        ('android', 'Android'),
+        ('web', 'Web'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='device_tokens',
+    )
+    expo_push_token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, default='android')
+    device_name = models.CharField(max_length=120, blank=True, null=True)
+    app_version = models.CharField(max_length=32, blank=True, null=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'is_active'], name='devicetoken_user_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} on {self.platform} ({self.expo_push_token[:12]}...)"

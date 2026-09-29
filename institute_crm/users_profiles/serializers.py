@@ -5,13 +5,14 @@ from accounts.serializers import UserSerializer
 class StudentProfileSerializer(serializers.ModelSerializer):
     user_detail = UserSerializer(source='user', read_only=True)
     batch_name = serializers.CharField(source='batch.name', read_only=True)
+    qr_payload = serializers.CharField(read_only=True)
 
     class Meta:
         model = StudentProfile
         fields = [
             'id', 'user', 'user_detail', 'enrollment_number', 'dob', 
             'gender', 'blood_group', 'address', 'emergency_contact', 
-            'batch', 'batch_name', 'documents_url', 'created_at'
+            'batch', 'batch_name', 'documents_url', 'qr_payload', 'created_at'
         ]
 
 

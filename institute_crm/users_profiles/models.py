@@ -20,6 +20,33 @@ class StudentProfile(BaseModel):
     batch = models.ForeignKey('academics.Batch', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     documents_url = models.JSONField(default=list, blank=True) # AWS S3 stored document URLs
 
+    #: Deep-link scheme the mobile app registers for check-in scanning.
+    QR_SCHEME = 'graphix://student/'
+
+    @property
+    def qr_payload(self) -> str:
+        """Stable identifier encoded in the student's ID card.
+
+        Keyed on the enrollment number rather than the primary key: enrollment
+        numbers are printed on ID cards and are what reception staff read out over
+        the counter, so the code has to survive a re-import of the user table.
+        """
+        return f'{self.QR_SCHEME}{self.enrollment_number}'
+
+    @classmethod
+    def from_qr_payload(cls, payload: str) -> 'StudentProfile | None':
+        """Resolve a scanned payload back to a profile, or ``None`` if foreign."""
+        prefix = cls.QR_SCHEME
+        if not payload or not payload.startswith(prefix):
+            return None
+        enrollment_number = payload[len(prefix):].strip()
+        if not enrollment_number:
+            return None
+        return cls.objects.filter(
+            enrollment_number__iexact=enrollment_number,
+            is_deleted=False,
+        ).select_related('user', 'batch').first()
+
     def __str__(self):
         return f"StudentProfile: {self.user.get_full_name()} ({self.enrollment_number})"
 

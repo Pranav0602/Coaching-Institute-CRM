@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from communications.models import Announcement, Notification
+from communications.models import Announcement, DeviceToken, Notification
 
 class AnnouncementSerializer(serializers.ModelSerializer):
     publisher_name = serializers.CharField(source='published_by.get_full_name', read_only=True)
@@ -48,3 +48,22 @@ class SendBatchNotificationSerializer(serializers.Serializer):
     target_audience = serializers.ChoiceField(
         choices=['STUDENTS', 'PARENTS', 'ALL'], default='STUDENTS'
     )
+
+
+class DeviceTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceToken
+        fields = [
+            'id', 'expo_push_token', 'platform', 'device_name',
+            'app_version', 'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
+
+
+class DeviceRegistrationSerializer(serializers.Serializer):
+    """Payload posted by the mobile client on every cold start."""
+
+    expo_push_token = serializers.CharField(max_length=255)
+    platform = serializers.ChoiceField(choices=['ios', 'android', 'web'], default='android')
+    device_name = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+    app_version = serializers.CharField(max_length=32, required=False, allow_blank=True, default='')

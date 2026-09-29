@@ -9,9 +9,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from communications.models import Announcement, Notification
+from communications.models import Announcement, DeviceToken, Notification
 from communications.serializers import (
     AnnouncementSerializer,
+    DeviceRegistrationSerializer,
+    DeviceTokenSerializer,
     NotificationSerializer,
     SendBatchNotificationSerializer,
 )
@@ -86,3 +88,41 @@ class NotificationViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
+
+
+class DeviceTokenViewSet(viewsets.ReadOnlyModelViewSet):
+    """``/api/v1/communications/devices/`` - the caller's own push handles.
+
+    Read-only as a collection: tokens are created through ``register`` and retired
+    through ``unregister`` so a client can never write fields it has no business
+    setting (``is_active``, ``user``).
+    """
+
+    serializer_class = DeviceTokenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return CommunicationService.filter_device_tokens(self.request.user)
+
+    @action(detail=False, methods=['post'], url_path='register')
+    def register(self, request):
+        serializer = DeviceRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        device, created = CommunicationService.register_device(
+            actor=request.user,
+            **serializer.validated_data,
+        )
+        return Response(
+            DeviceTokenSerializer(device).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post', 'delete'], url_path='unregister')
+    def unregister(self, request, pk=None):
+        device = CommunicationService.unregister_device(request.user, pk)
+        return Response(DeviceTokenSerializer(device).data)
+
+    @action(detail=False, methods=['post'], url_path='unregister-all')
+    def unregister_all(self, request):
+        retired = CommunicationService.unregister_all_devices(request.user)
+        return Response({'retired': retired})
