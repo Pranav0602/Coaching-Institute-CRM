@@ -57,3 +57,12 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ---------------------------------------------------------------------------
+# IDE agent workspaces
+# ---------------------------------------------------------------------------
+# Kilo/Cline-style agents create git worktrees that contain a *complete second
+# copy of this repository*, including their own .git file. Committing one would
+# duplicate the entire tree into history and break every later clone.
+.kilo/
+.claude/
