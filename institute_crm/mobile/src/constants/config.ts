@@ -1,42 +1,26 @@
 /**
  * Runtime configuration.
  *
- * The API base URL is the one value that has to change between a developer's
- * machine, a physical handset on the same LAN, an Android emulator and
- * production, so it is resolved once, here, with the platform-specific
- * fallbacks spelled out.
+ * The app talks to the Render production backend by default. A developer
+ * pointing at a local backend (Android emulator via `10.0.2.2`, iOS simulator
+ * via `127.0.0.1`, or a physical handset via the machine's LAN IP) must say so
+ * explicitly with `EXPO_PUBLIC_API_BASE_URL` or `extra.apiBaseUrl` - the
+ * default never points at a loopback address, because a physical handset cannot
+ * reach one and fails with "could not reach the API at http://10.0.2.2...".
  */
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 
 const DEFAULT_PRODUCTION_URL = 'https://coaching-institute-crm.onrender.com/api/v1';
-
-/**
- * `10.0.2.2` is the loopback alias inside the Android emulator. iOS simulators
- * share the host's network stack, so `127.0.0.1` is correct there. A real
- * handset needs the machine's LAN IP and must supply it explicitly.
- */
-const LOCAL_FALLBACK =
-  Platform.OS === 'android' ? 'http://10.0.2.2:8000/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 const extraUrl = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.apiBaseUrl;
 
-// In dev without an explicit override, talk to the developer's backend instead of
-// production: seeded users (admin/Admin@123, ...) exist only in the dev database,
-// so pointing a dev build at production is the single most common "correct password,
-// won't sign in" report.
-const isDevBuild =
-  typeof __DEV__ !== 'undefined'
-    ? __DEV__
-    : process.env.NODE_ENV !== 'production';
-
 export const API_BASE_URL = trimTrailingSlash(
   (typeof envUrl === 'string' && envUrl) ||
     (typeof extraUrl === 'string' && extraUrl) ||
-    (isDevBuild ? LOCAL_FALLBACK : DEFAULT_PRODUCTION_URL),
+    DEFAULT_PRODUCTION_URL,
 );
 
 /** Absolute origin, used for `/healthz/` which is not under the `/api/v1` prefix. */

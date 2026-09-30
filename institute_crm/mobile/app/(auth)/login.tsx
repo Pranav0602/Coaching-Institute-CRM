@@ -164,9 +164,10 @@ const LoginScreen = () => {
         {/*
           The single most common cause of "my password is right but it will not
           sign in" is an app pointed at a different database than the one the
-          credentials were created in. Dev builds default to the local backend
-          (see config.ts); release builds default to production. Showing the host
-          makes a mismatch obvious without needing the Metro logs.
+          credentials were created in - the app targets the Render production
+          backend unless EXPO_PUBLIC_API_BASE_URL (or extra.apiBaseUrl) says
+          otherwise. Showing the host makes a mismatch obvious without needing
+          the Metro logs.
         */}
         <View style={styles.hostRow}>
           <Text variant="labelSmall" style={styles.hostLabel}>
