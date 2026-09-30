@@ -50,6 +50,16 @@ services:
           property: connectionString
       - key: DB_SSL_REQUIRE
         value: true
+      # A managed database drops idle TLS connections; a request that lands on one gets
+      # "SSL error: decryption failed or bad record mac" and a 500. Reused connections
+      # are health-checked, TCP keepalives are on, and a dead connection is replaced
+      # and the read retried once (institute_crm/postgresql_backend). All three are the
+      # default; set this to false to turn the retry off while diagnosing a provider
+      # incident. Writes are never replayed, so no setting here can duplicate a row.
+      - key: DB_RETRY_ON_BROKEN_CONNECTION
+        value: "true"
+      - key: DB_CONN_HEALTH_CHECKS
+        value: "true"
       - key: RAG_ENABLED
         value: false
       # Token revocation. When true, rotating a refresh token retires the one it

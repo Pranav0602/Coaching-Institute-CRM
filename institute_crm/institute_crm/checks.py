@@ -37,6 +37,7 @@ from institute_crm import token_revocation
 logger = logging.getLogger("institute_crm.checks")
 
 POSTGRES_ENGINE = "django.db.backends.postgresql"
+PROJECT_POSTGRES_ENGINE = "institute_crm.postgresql_backend"
 
 # Known embedding dimensions, used only to catch obvious misconfiguration.
 _KNOWN_EMBEDDING_DIMENSIONS = {
@@ -86,14 +87,21 @@ def check_database_backend(app_configs, **kwargs) -> list[CheckMessage]:
     ``settings.py`` already refuses to import with a non-PostgreSQL ``DB_ENGINE``, so
     this is a second line of defence that also catches programmatic overrides such as
     a test settings module or a stray ``settings.DATABASES`` mutation.
+
+    Both PostgreSQL backends pass: Django's own, and this project's subclass of it that
+    retries a statement after a dead connection (see ``institute_crm.postgresql_backend``).
     """
     engine = settings.DATABASES.get("default", {}).get("ENGINE")
-    if engine == POSTGRES_ENGINE:
+    supported = {
+        getattr(settings, "POSTGRES_ENGINE", POSTGRES_ENGINE),
+        getattr(settings, "PROJECT_POSTGRES_ENGINE", PROJECT_POSTGRES_ENGINE),
+    }
+    if engine in supported:
         return []
     return [
         Error(
             f"The default database engine is {engine!r}, but this project requires "
-            f"{POSTGRES_ENGINE!r}.",
+            f"PostgreSQL ({' or '.join(sorted(supported))}).",
             hint=(
                 "SQLite is not supported. The schema depends on PostgreSQL features and "
                 "the RAG corpus requires the pgvector extension, which exists only for "

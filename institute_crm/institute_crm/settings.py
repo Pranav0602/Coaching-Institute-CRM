@@ -232,14 +232,22 @@ TEMPLATES = [
 # ---------------------------------------------------------------------------
 POSTGRES_ENGINE = "django.db.backends.postgresql"
 
-DB_ENGINE = env_str("DB_ENGINE", default=POSTGRES_ENGINE)
-if DB_ENGINE != POSTGRES_ENGINE:
+# The project's own PostgreSQL backend: the stock engine plus a single transparent
+# retry when a pooled/TLS connection dies mid-statement, which is what turns
+# "SSL error: decryption failed or bad record mac" into a 500 for every authenticated
+# request. Still PostgreSQL - same driver, same schema, same engine API. See
+# institute_crm/postgresql_backend/.
+PROJECT_POSTGRES_ENGINE = "institute_crm.postgresql_backend"
+SUPPORTED_POSTGRES_ENGINES = frozenset({POSTGRES_ENGINE, PROJECT_POSTGRES_ENGINE})
+
+DB_ENGINE = env_str("DB_ENGINE", default=PROJECT_POSTGRES_ENGINE)
+if DB_ENGINE not in SUPPORTED_POSTGRES_ENGINES:
     raise ImproperlyConfigured(
-        f"This project requires PostgreSQL. DB_ENGINE was {DB_ENGINE!r}, expected "
-        f"{POSTGRES_ENGINE!r}. SQLite and other backends are not supported: the schema "
-        f"relies on PostgreSQL features and the planned RAG corpus requires the pgvector "
-        f"extension. Start PostgreSQL (see SETUP.md or `docker compose up db`) instead of "
-        f"changing this value."
+        f"This project requires PostgreSQL. DB_ENGINE was {DB_ENGINE!r}, expected one of "
+        f"{sorted(SUPPORTED_POSTGRES_ENGINES)}. SQLite and other backends are not supported: "
+        f"the schema relies on PostgreSQL features and the planned RAG corpus requires the "
+        f"pgvector extension. Start PostgreSQL (see SETUP.md or `docker compose up db`) "
+        f"instead of changing this value."
     )
 
 if importlib.util.find_spec("psycopg2") is None and importlib.util.find_spec("psycopg") is None:
@@ -247,6 +255,26 @@ if importlib.util.find_spec("psycopg2") is None and importlib.util.find_spec("ps
         "No PostgreSQL driver found. Install dependencies with: "
         "pip install -r requirements.txt"
     )
+
+
+def _tune_persistent_connection(config: dict) -> None:
+    """Harden a connection that is reused across requests.
+
+    A worker holds its connection open for ``CONN_MAX_AGE`` seconds, so a connection
+    the database has already dropped can be handed to a request as if it were healthy.
+    ``CONN_HEALTH_CHECKS`` makes Django ping a reused connection and replace it when
+    the ping fails; libpq's TCP keepalives spot the same dead socket from the other
+    direction, before a query ever waits on it. Neither changes behaviour for a
+    healthy connection - they only make a dropped one cheap to notice.
+    """
+    config["CONN_HEALTH_CHECKS"] = env_bool("DB_CONN_HEALTH_CHECKS", True)
+    options = config.setdefault("OPTIONS", {})
+    options.setdefault("connect_timeout", env_int("DB_CONNECT_TIMEOUT", 10))
+    options.setdefault("keepalives", 1)
+    options.setdefault("keepalives_idle", env_int("DB_KEEPALIVES_IDLE", 30))
+    options.setdefault("keepalives_interval", env_int("DB_KEEPALIVES_INTERVAL", 10))
+    options.setdefault("keepalives_count", env_int("DB_KEEPALIVES_COUNT", 3))
+
 
 # Render provides DATABASE_URL; parse it if present (takes precedence over DB_* split vars)
 _DATABASE_URL = env_str("DATABASE_URL", default="")
@@ -261,29 +289,28 @@ if _DATABASE_URL:
                 ssl_require=env_bool("DB_SSL_REQUIRE", default=not DEBUG),
             )
         }
-        # Ensure pgvector-compatible engine (dj-database-url may return postgres alias)
-        if DATABASES["default"].get("ENGINE") != POSTGRES_ENGINE:
-            DATABASES["default"]["ENGINE"] = POSTGRES_ENGINE
+        # dj-database-url may return the bare "postgres" alias; force this project's
+        # backend so a Render worker gets the reconnect-on-dead-socket behaviour too.
+        DATABASES["default"]["ENGINE"] = PROJECT_POSTGRES_ENGINE
     except ImportError as exc:
         raise ImproperlyConfigured(
             "DATABASE_URL is set but dj-database-url is not installed. "
             "Add dj-database-url to requirements.txt or unset DATABASE_URL."
         ) from exc
+    _tune_persistent_connection(DATABASES["default"])
 else:
     DATABASES = {
         "default": {
-            "ENGINE": POSTGRES_ENGINE,
+            "ENGINE": DB_ENGINE,
             "NAME": env_str("DB_NAME", "Institute_CRM"),
             "USER": env_str("DB_USER", "postgres"),
             "PASSWORD": env_str("DB_PASSWORD", required=True),
             "HOST": env_str("DB_HOST", "127.0.0.1"),
             "PORT": env_str("DB_PORT", "5432"),
             "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
-            "OPTIONS": {
-                "connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10),
-            },
         }
     }
+    _tune_persistent_connection(DATABASES["default"])
 
 
 # ---------------------------------------------------------------------------
