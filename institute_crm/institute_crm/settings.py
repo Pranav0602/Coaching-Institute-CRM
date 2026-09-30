@@ -174,9 +174,14 @@ INSTALLED_APPS = [
 #: A deploy that ships the code without the migration turns every sign-in into a
 #: 500, which is exactly that failure.
 #:
-#: ``crm.E004`` fails the build when this is on and the tables are absent, so the
-#: broken combination cannot reach production. Set ``JWT_BLACKLIST=false`` to run
-#: without the per-login write (sessions are then revoked only by expiry).
+#: Three things keep that combination out of production, and they must agree:
+#: ``build.sh`` runs ``manage.py migrate`` then ``check --deploy`` (Django runs
+#: ``deploy=True`` checks such as ``crm.E004`` *only* under that flag), ``/readyz``
+#: reports the missing tables as not-ready, and every worker creates them at boot if
+#: they are still absent (``institute_crm.token_revocation``). While the tables are
+#: missing, tokens are still issued and rotated — revocation alone is suspended.
+#: Set ``JWT_BLACKLIST=false`` to run without the per-login write permanently
+#: (sessions are then revoked by expiry only).
 JWT_BLACKLIST = env_bool("JWT_BLACKLIST", True)
 
 if JWT_BLACKLIST:

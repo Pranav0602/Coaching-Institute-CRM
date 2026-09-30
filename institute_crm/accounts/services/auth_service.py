@@ -13,6 +13,9 @@ Security posture
 * Soft-deleted and deactivated users cannot authenticate even with correct credentials.
 * AWS Cognito is treated as an *optional mirror*: an outage there logs a warning and the
   local login still succeeds. Cognito tokens are never written to the audit trail.
+* If the ``token_blacklist`` tables are missing, tokens are still issued and still rotate.
+  Refresh-token revocation is suspended, loudly, rather than every sign-in failing -
+  see :func:`_mint_refresh_token`.
 """
 from __future__ import annotations
 
@@ -30,10 +33,10 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from accounts.models import User
-from institute_crm import audit
+from institute_crm import audit, token_revocation
 from institute_crm.exceptions import (
     AuthenticationFailed,
     NotFoundError,
@@ -45,6 +48,64 @@ logger = logging.getLogger("institute_crm.accounts")
 #: Placeholder OTP retained for the existing demo flow. Real delivery (SES/SNS) is a
 #: follow-up; see `AuthService.request_password_reset`.
 DEMO_OTP = "123456"
+
+
+def _mint_refresh_token(user: User) -> RefreshToken:
+    """Mint a refresh token, recording it as outstanding when that table exists.
+
+    ``RefreshToken.for_user`` is ``BlacklistMixin``'s override, which inserts an
+    ``OutstandingToken`` row unconditionally. With the blacklist app installed but not
+    migrated - a deploy that shipped the code before the migration - that insert raises and
+    *every* sign-in returns 500, which is precisely how this took production down.
+
+    So when the tables are absent, fall back to ``Token.for_user``: the same method without
+    the write, reached through the MRO rather than reimplemented, so SimpleJWT's own claim
+    handling (``USER_ID_FIELD``, ``CHECK_REVOKE_TOKEN``) still applies. ``usable()`` logs
+    the reason once per process; the fallback is deliberately not an exception, because a
+    missing table should cost revocability, never access.
+    """
+    if token_revocation.usable():
+        return RefreshToken.for_user(user)
+    return Token.for_user.__func__(RefreshToken, user)
+
+
+class _UnrevocableRefreshToken(RefreshToken):
+    """A refresh token that never touches the blacklist tables.
+
+    These three methods are the only points at which SimpleJWT reads or writes
+    ``token_blacklist_*``. Turning them into no-ops makes the whole token - construction
+    (which otherwise checks the blacklist on every verify), rotation and blacklisting -
+    table-free, so an un-migrated database degrades to "sessions expire instead of being
+    revoked" instead of to a 500.
+
+    Only selected while the tables are absent; see :data:`refresh_serializer_class`.
+    """
+
+    def check_blacklist(self) -> None:
+        """No-op: a token that cannot be blacklisted can never be found in the blacklist."""
+
+    def blacklist(self) -> None:
+        """No-op: nothing to retire. The token simply expires."""
+
+    def outstand(self) -> None:
+        """No-op: there is no outstanding-token ledger to append to."""
+
+
+class _UnrevocableRefreshSerializer(TokenRefreshSerializer):
+    """``TokenRefreshSerializer`` that rotates without blacklisting.
+
+    Rotation itself is kept, so a client still never has to re-prompt for credentials; only
+    the retiring of the superseded token is skipped.
+    """
+
+    token_class = _UnrevocableRefreshToken
+
+
+def refresh_serializer_class() -> type[TokenRefreshSerializer]:
+    """Pick the refresh serializer that matches what the database can actually do."""
+    if token_revocation.usable():
+        return TokenRefreshSerializer
+    return _UnrevocableRefreshSerializer
 
 
 def _upgrade_stale_hash(user: User):
@@ -202,7 +263,7 @@ class AuthService:
         round trip. They are *not* trusted for authorisation - permissions always
         re-read the database (see ``accounts/permissions.py``).
         """
-        refresh = RefreshToken.for_user(user)
+        refresh = _mint_refresh_token(user)
         refresh["role"] = user.role_code or ""
         refresh["branch_id"] = str(user.branch_id) if user.branch_id else ""
         refresh["username"] = user.username
@@ -228,8 +289,11 @@ class AuthService:
         access token and the token it replaced is blacklisted. Callers must persist
         the returned ``refresh``; continuing to present the old one fails on the
         next exchange.
+
+        If the blacklist tables are missing the rotation still happens, but the
+        superseded token is not retired - see :func:`refresh_serializer_class`.
         """
-        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+        serializer = refresh_serializer_class()(data={"refresh": refresh_token})
         # SimpleJWT raises TokenError straight out of ``validate()`` for a
         # malformed or blacklisted token, and TokenError is not a DRF exception -
         # letting it escape would surface a 500 to a client that simply needs to
@@ -265,7 +329,14 @@ class AuthService:
         """
         if refresh_token:
             try:
-                RefreshToken(refresh_token).blacklist()
+                # Same class the refresh path would use, so an un-migrated blacklist
+                # degrades to "the token simply expires" instead of an error here.
+                token_class = (
+                    RefreshToken
+                    if token_revocation.usable()
+                    else _UnrevocableRefreshToken
+                )
+                token_class(refresh_token).blacklist()
             except TokenError as exc:
                 logger.debug("Logout blacklist skipped: %s", exc)
             except Exception as exc:  # noqa: BLE001 - logout must never fail

@@ -6,6 +6,10 @@ startup, and can be used as a container readiness probe. They are registered fro
 ``accounts.apps.AccountsConfig.ready()`` because ``institute_crm`` is the project
 package rather than an installed app.
 
+A check registered with ``deploy=True`` is the exception: Django runs those *only* under
+``manage.py check --deploy``, so a build step that wants one must say so. ``build.sh``
+runs ``check --deploy`` for that reason.
+
 The intent is fail-fast, actionable configuration errors instead of a mystery failure
 on the first query. When the ``rag`` app is added it should register its own
 ``rag.E00x`` checks in ``RagConfig.ready()`` and may reuse
@@ -27,6 +31,8 @@ import logging
 from django.conf import settings
 from django.core.checks import CheckMessage, Error, Tags, Warning as CheckWarning, register
 from django.db import connections, OperationalError
+
+from institute_crm import token_revocation
 
 logger = logging.getLogger("institute_crm.checks")
 
@@ -182,7 +188,7 @@ def check_production_configuration(app_configs, **kwargs) -> list[CheckMessage]:
 
 @register(Tags.security, deploy=True)
 def check_token_blacklist_migrated(app_configs, **kwargs) -> list[CheckMessage]:
-    """Fail the build when token revocation is on but its tables are absent.
+    """Fail ``check --deploy`` when token revocation is on but its tables are absent.
 
     With ``rest_framework_simplejwt.token_blacklist`` installed, SimpleJWT writes
     an ``OutstandingToken`` row every time it issues a refresh token — including
@@ -190,14 +196,16 @@ def check_token_blacklist_migrated(app_configs, **kwargs) -> list[CheckMessage]:
     migration therefore breaks *every* sign-in with a 500, and the only evidence
     is a stack trace from a user who cannot get in.
 
-    System checks run on every ``manage.py`` command, including the ``migrate``
-    and ``collectstatic`` steps in ``build.sh``, so raising an error here stops
-    the deploy at the point it can still be fixed. ``deploy=True`` keeps it out
-    of the noisy output of routine local commands.
+    ``deploy=True`` means Django runs this only under ``manage.py check --deploy`` —
+    **not** on ``migrate`` or ``collectstatic``, which run the non-deploy checks only.
+    That distinction matters: a previous version of this docstring claimed ``build.sh``
+    was covered by the check, and no deploy was ever stopped. ``build.sh`` now runs
+    ``check --deploy`` explicitly for exactly that reason, and ``/readyz`` reports the
+    same state at runtime (see :func:`run_readiness_checks`).
     """
     if not getattr(settings, "JWT_BLACKLIST", False):
         return []
-    if "rest_framework_simplejwt.token_blacklist" not in settings.INSTALLED_APPS:
+    if token_revocation.BLACKLIST_APP not in settings.INSTALLED_APPS:
         # JWT_BLACKLIST and INSTALLED_APPS disagree; settings.py keeps them in
         # step, so this is unreachable in practice and is here to catch a future
         # refactor that breaks the coupling.
@@ -211,28 +219,24 @@ def check_token_blacklist_migrated(app_configs, **kwargs) -> list[CheckMessage]:
             )
         ]
 
-    try:
-        with connections["default"].cursor() as cursor:
-            cursor.execute(
-                "SELECT to_regclass('public.token_blacklist_outstandingtoken')"
-            )
-            row = cursor.fetchone()
-    except OperationalError as exc:
-        # Unreachable database is a different problem, reported by crm.E001.
-        logger.warning("Could not verify the token_blacklist tables: %s", exc)
-        return []
-
-    if row and row[0]:
+    missing = token_revocation.missing_tables()
+    if not missing:
+        # Covers both "nothing is missing" and "the database could not be reached";
+        # the latter is a different problem, reported by crm.E001 and by readiness.
         return []
 
     return [
         Error(
-            "JWT_BLACKLIST is on but the token_blacklist tables do not exist, so "
-            "every login will fail with a 500.",
+            "JWT_BLACKLIST is on but {} {} missing from the database, so every login "
+            "fails with a 500: SimpleJWT writes an OutstandingToken row on every "
+            "sign-in.".format(
+                ", ".join(missing), "is" if len(missing) == 1 else "are",
+            ),
             hint="Run `python manage.py migrate` against the same database the "
-            "service uses, or set JWT_BLACKLIST=false to run without the "
-            "per-login OutstandingToken write (sessions are then revoked by "
-            "expiry only).",
+            "service uses; build.sh already does this, so a deploy that skipped it "
+            "needs its build command checked. Workers also self-repair at boot. "
+            "Alternatively set JWT_BLACKLIST=false to run without the per-login "
+            "OutstandingToken write (sessions are then revoked by expiry only).",
             id="crm.E004",
         )
     ]
@@ -291,7 +295,11 @@ def run_readiness_checks() -> list[str]:
     Returns a list of human-readable blocking problems; empty means ready.
     """
     blocking: list[str] = []
-    for check in (check_database_backend, check_pgvector_extension):
+    for check in (
+        check_database_backend,
+        check_pgvector_extension,
+        check_token_blacklist_migrated,
+    ):
         for message in check(None):
             if isinstance(message, Error):
                 blocking.append(f"{message.id}: {message.msg}")

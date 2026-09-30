@@ -95,25 +95,39 @@ writes an `OutstandingToken` row every time it issues a refresh token — includ
 during a plain sign-in — so a deploy that ships the code without running the
 migration makes **every login return 500**.
 
-That happened in production once already. Three things now prevent it recurring:
+That happened in production once already, and the guard added at the time did not
+stop it: `crm.E004` was registered with `deploy=True`, which makes Django run it
+**only** under `manage.py check --deploy`. Plain `migrate` and `collectstatic`
+skip deploy checks, so `build.sh` never actually exercised it. `/readyz` also
+stayed green, because readiness did not look at the blacklist tables either.
 
 | Guard | Effect |
 | --- | --- |
-| `crm.E004` system check (`deploy=True`) | System checks run on every `manage.py` command, including the `migrate` and `collectstatic` steps in `build.sh`, so this combination **fails the build** instead of reaching users. |
-| `scripts/check_token_blacklist.py`, called from `build.sh` | Prints one readable line into the deploy log and fails the build with an actionable message. Runnable by hand: `python scripts/check_token_blacklist.py` |
-| `JWT_BLACKLIST=false` | Escape hatch. Login stops depending on the table entirely, so sign-in is restored immediately without waiting for a migration. Sessions are then revoked by expiry only. |
+| `manage.py migrate` in `build.sh` | Applies the `token_blacklist` migrations at build time. |
+| `manage.py check --deploy` in `build.sh` | Runs `crm.E004` — and `crm.E003` — for real. Without `--deploy` these are skipped. |
+| `/readyz` (`run_readiness_checks`) | Returns 503 while the tables are missing, so a broken deploy cannot pass a health check. |
+| `token_revocation.repair_missing_tables()` in `wsgi.py`/`asgi.py` | Each worker creates the tables at boot if they are still absent, so a deploy whose build step did not apply them repairs itself instead of locking every user out. Serialised across workers with a PostgreSQL advisory lock. |
+| `scripts/check_token_blacklist.py` | Prints one readable line into the deploy log naming the missing tables. Runnable by hand against the live database. |
+| `JWT_BLACKLIST=false` | Escape hatch. Login stops depending on the tables entirely. Sessions are then revoked by expiry only. |
+
+While the tables are missing, **tokens are still issued and still rotate** — only
+revocation is suspended, and `institute_crm.token_revocation` logs that at ERROR once
+per worker with the command that fixes it. The outage mode is "sessions expire instead
+of being revoked", not "nobody can sign in".
 
 **If you ever see `relation "token_blacklist_outstandingtoken" does not exist`:**
 
 ```bash
-# 1. Fastest: restore login without waiting for a migration.
-#    Render dashboard -> crm-backend -> Environment -> JWT_BLACKLIST=false -> Save.
-# 2. Proper fix: apply the migrations to the service database.
-python manage.py migrate
+# 1. Proper fix: apply the migrations to the service database.
+python manage.py migrate token_blacklist
+python scripts/check_token_blacklist.py    # confirms, names anything still missing
+# 2. Redeploy (or restart) so workers re-probe the schema.
+# 3. Only if the database user cannot run DDL: JWT_BLACKLIST=false in the Render
+#    dashboard. Login works either way; this makes the reduced guarantee intentional.
 ```
 
-If `JWT_BLACKLIST=false` is used as a stopgap, remember to run `migrate` and flip
-it back to `true` afterwards — otherwise token revocation stays silently off.
+If `JWT_BLACKLIST=false` is used, remember to run `migrate` and flip it back to `true`
+afterwards — otherwise token revocation stays silently off.
 
 ---
 

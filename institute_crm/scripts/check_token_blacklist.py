@@ -1,14 +1,15 @@
 """Confirm token revocation is actually usable against this database.
 
-Called from ``build.sh`` immediately after ``manage.py migrate``. The system check
-``crm.E004`` already turns a missing-table deploy into a build failure, but a
-check's output is a wall of text; this prints one line an operator can read in
-the deploy log, and it is runnable by hand against a live database:
+Called from ``build.sh`` immediately after ``manage.py migrate``, and runnable by hand
+against a live database:
 
     python scripts/check_token_blacklist.py
 
-Exit code 0 means the configuration in use is coherent. Exit code 1 means login
-will 500 until the migrations are applied (or ``JWT_BLACKLIST`` is turned off).
+It prints one line an operator can read in the deploy log rather than the wall of text a
+system check produces, and it names the tables that are actually missing.
+
+Exit code 0 means the configuration in use is coherent. Exit code 1 means every login
+will fail until the migrations are applied (or ``JWT_BLACKLIST`` is turned off).
 """
 import os
 import sys
@@ -22,31 +23,29 @@ sys.path.insert(0, PROJECT_ROOT)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "institute_crm.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from django.db import connection  # noqa: E402
-
-TABLE = "token_blacklist_outstandingtoken"
+from institute_crm import token_revocation  # noqa: E402
 
 
 def main() -> int:
-    if not getattr(settings, "JWT_BLACKLIST", False):
-        print("[ok] JWT_BLACKLIST is off; refresh tokens expire rather than being revoked.")
+    if not token_revocation.enabled():
+        print("[ok] Token revocation is off; refresh tokens expire rather than being revoked.")
         print("     Login does not depend on any token_blacklist table.")
         return 0
 
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT to_regclass(%s)", [f"public.{TABLE}"])
-        found = (cursor.fetchone() or (None,))[0]
+    missing = token_revocation.missing_tables()
+    if missing is None:
+        print("[warn] Could not reach the database, so revocation is unverified.", file=sys.stderr)
+        return 0
 
-    if not found:
-        print(f"[FAIL] JWT_BLACKLIST is on but {TABLE} does not exist.", file=sys.stderr)
-        print("       Every login will fail with a 500, because SimpleJWT writes an")
+    if missing:
+        print(f"[FAIL] Missing table(s): {', '.join(missing)}.", file=sys.stderr)
+        print("       Every login fails with a 500, because SimpleJWT writes an")
         print("       OutstandingToken row each time it issues a refresh token.")
         print("       Fix:  python manage.py migrate   (against the service database)")
         print("   or:  set JWT_BLACKLIST=false and redeploy.", file=sys.stderr)
         return 1
 
-    print(f"[ok] {TABLE} present; refresh-token revocation is active.")
+    print("[ok] token_blacklist tables present; refresh-token revocation is active.")
     return 0
 
 

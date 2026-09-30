@@ -5,9 +5,10 @@ Liveness and readiness probes.
 as a container liveness probe without a database round trip.
 
 ``/readyz`` answers "can this process serve traffic?" and therefore does check the
-database, the media directory, and - once RAG is enabled - pgvector availability. It
-returns 503 while any of those is unsatisfied, which is what a load balancer needs in
-order to hold traffic back during a rolling deploy.
+database, the media directory, the ``token_blacklist`` tables that login writes to, and -
+once RAG is enabled - pgvector availability. It returns 503 while any of those is
+unsatisfied, which is what a load balancer needs in order to hold traffic back during a
+rolling deploy.
 
 Both are deliberately unauthenticated (a probe has no credentials) and deliberately
 low-detail: the failure list names *which* subsystem is unhappy, never connection strings,
