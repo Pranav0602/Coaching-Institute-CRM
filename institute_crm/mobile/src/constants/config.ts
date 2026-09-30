@@ -24,10 +24,19 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 const extraUrl = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.apiBaseUrl;
 
+// In dev without an explicit override, talk to the developer's backend instead of
+// production: seeded users (admin/Admin@123, ...) exist only in the dev database,
+// so pointing a dev build at production is the single most common "correct password,
+// won't sign in" report.
+const isDevBuild =
+  typeof __DEV__ !== 'undefined'
+    ? __DEV__
+    : process.env.NODE_ENV !== 'production';
+
 export const API_BASE_URL = trimTrailingSlash(
   (typeof envUrl === 'string' && envUrl) ||
     (typeof extraUrl === 'string' && extraUrl) ||
-    DEFAULT_PRODUCTION_URL,
+    (isDevBuild ? LOCAL_FALLBACK : DEFAULT_PRODUCTION_URL),
 );
 
 /** Absolute origin, used for `/healthz/` which is not under the `/api/v1` prefix. */
@@ -41,7 +50,13 @@ export const HEALTHCHECK_URL = `${API_ORIGIN}/healthz/`;
  * cost inside a login spinner.
  */
 export const COLD_BOOT_TIMEOUT_MS = 50_000;
-export const REQUEST_TIMEOUT_MS = 20_000;
+export const REQUEST_TIMEOUT_MS = 30_000;
+/**
+ * Login gets the cold-boot budget, not the normal request budget: on a scaled-to-zero
+ * Render instance the first POST boots the container (~30-50s) and a 20-30s timeout
+ * turns every cold start into a false "wrong password".
+ */
+export const LOGIN_TIMEOUT_MS = 50_000;
 
 /** Ask for a fresh access token this long before it actually expires. */
 export const REFRESH_SKEW_MS = 60_000;

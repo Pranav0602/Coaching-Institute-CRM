@@ -187,7 +187,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       await tokens.set(result.access, result.refresh);
-      await accessExpiry.set(Date.now() + (result.access_expires_in ?? 0) * 1000);
+      if (typeof result.access_expires_in === 'number' && result.access_expires_in > 0) {
+        await accessExpiry.set(Date.now() + result.access_expires_in * 1000);
+      } else {
+        await accessExpiry.clear();
+      }
       await sessionStore.set(result.user);
 
       // Read the token back. A secure-storage write that silently fails produces

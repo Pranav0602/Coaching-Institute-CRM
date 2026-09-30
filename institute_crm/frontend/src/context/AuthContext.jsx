@@ -57,30 +57,15 @@ export const AuthProvider = ({ children }) => {
       setActiveRole(userData.role_code || ROLES.SUPER_ADMIN);
       return { success: true };
     } catch (err) {
-      // Only fallback to demo mode when the API is unreachable (network error)
-      // Credential errors (401) should surface to the user.
-      const isNetworkError = !err?.status_code && (err?.status_code === 0 || !err?.errors);
-      const isUnreachable = err?.detail?.includes('Network error') || err?.status_code === 0 || !err?.status_code;
-      const hasNoResponse = !err?.status_code && !err?.code;
-      // Detect genuine network failure vs auth failure
-      const shouldFallback = err?.detail?.includes('Could not reach the API') || err?.status_code === 0 || (hasNoResponse && !err?.errors);
-      if (shouldFallback) {
-        const demoUser = {
-          id: 'demo-id-123',
-          username,
-          first_name: username.toUpperCase(),
-          last_name: 'User',
-          email: `${username}@coaching.com`,
-          role_code: activeRole,
-          branch_name: 'Main Campus - Pune (Demo Mode - API Offline)',
-        };
-        localStorage.setItem('access_token', 'mock-token');
-        localStorage.setItem('user', JSON.stringify(demoUser));
-        setUser(demoUser);
-        return { success: true, demoMode: true, warning: 'API offline - running in demo mode. Some data will be mock.' };
-      }
-      // Auth failure - propagate
-      const message = err?.detail || err?.message || err?.errors?.detail?.[0] || 'Invalid credentials. Please check username and password.';
+      // No silent demo fallback: signing in with a mock token masks real outages
+      // (and diverges from the mobile app, which correctly surfaces the error),
+      // so an unreachable API is reported as a failure with the backend URL.
+      // Auth failures propagate with the server message.
+      const message =
+        err?.detail ||
+        err?.message ||
+        err?.errors?.detail?.[0] ||
+        'Invalid credentials. Please check username and password.';
       return { success: false, error: message, detail: err };
     }
   };

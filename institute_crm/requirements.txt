@@ -20,9 +20,9 @@ PyJWT>=2.8.0
 
 # Database
 psycopg2-binary>=2.9.9
-# Vector column/index support for the planned RAG corpus. Installed now so the
-# pgvector readiness checks and deployment images stay in sync; no application code
-# imports it until the `rag` app lands (see RAG_IMPLEMENTATION_PLAN.md).
+# Vector column/index support for the RAG corpus (rag/models.py imports pgvector).
+# Kept in sync with the pgvector readiness checks and deployment images
+# (see RAG_IMPLEMENTATION_PLAN.md).
 pgvector>=0.2.5
 
 # Image handling - required by Django's ImageField for profile photos
@@ -37,9 +37,6 @@ argon2-cffi>=23.1.0
 # All wrapped with graceful fallbacks in aws_services/ so local development works
 # without credentials.
 boto3>=1.34.0
-
-# PDF generation for receipts and reports
-reportlab>=4.1.0
 
 # Production deployment (Render)
 gunicorn>=21.2.0

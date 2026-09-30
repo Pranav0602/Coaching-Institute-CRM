@@ -1,11 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Eye, EyeOff, Fingerprint, GraduationCap, Lock, ServerCrash, User } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { warmBackend } from '@/api/client';
+import { ApiError, warmBackend } from '@/api/client';
 import { API_BASE_URL } from '@/constants/config';
 import { BRAND } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
@@ -26,6 +26,19 @@ const LoginScreen = () => {
   const [waking, setWaking] = useState(false);
   const [warmed, setWarmed] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [submitHint, setSubmitHint] = useState<string | null>(null);
+
+  // Warm on mount: AuthContext already pings during boot, but a deep link straight
+  // to /login would otherwise skip it and pay the ~50s cold start inside the spinner.
+  useEffect(() => {
+    let cancelled = false;
+    void warmBackend().then((ok) => {
+      if (!cancelled && ok) setWarmed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !submitting;
 
@@ -33,10 +46,18 @@ const LoginScreen = () => {
     setTouched(true);
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitHint(null);
     try {
       await signIn(username, password);
-    } catch {
-      // `error` already carries the message to the banner.
+    } catch (err) {
+      // `error` already carries the message to the banner; add a cold-start hint
+      // for unreachable/timeout failures so "correct password, no sign-in" reads as
+      // infrastructure, not credentials.
+      if (err instanceof ApiError && err.isOffline) {
+        setSubmitHint(
+          'Could not reach the server. If it just woke from sleep, tap "Wake the server" below and retry.',
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -134,13 +155,18 @@ const LoginScreen = () => {
             {error}
           </HelperText>
         ) : null}
+        {submitHint ? (
+          <HelperText type="info" visible padding="none" style={{ marginTop: 4 }}>
+            {submitHint}
+          </HelperText>
+        ) : null}
 
         {/*
           The single most common cause of "my password is right but it will not
           sign in" is an app pointed at a different database than the one the
-          credentials were created in - the seeded users exist only locally, and
-          the default target is production. Showing the host makes that obvious
-          without needing the Metro logs.
+          credentials were created in. Dev builds default to the local backend
+          (see config.ts); release builds default to production. Showing the host
+          makes a mismatch obvious without needing the Metro logs.
         */}
         <View style={styles.hostRow}>
           <Text variant="labelSmall" style={styles.hostLabel}>

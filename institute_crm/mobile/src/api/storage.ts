@@ -19,16 +19,33 @@ const secureKey = (key: string) => key.replace(/[^A-Za-z0-9._-]/g, '_');
 
 const secureGet = async (key: string): Promise<string | null> => {
   if (Platform.OS === 'web') {
-    // Keychain is unavailable in browsers; fall back so the app still runs on
-    // web for demos. Never ship tokens this way to production web.
-    return cache.get(key) ?? null;
+    // Keychain is unavailable in browsers. Persist to AsyncStorage (localStorage)
+    // so a web reload keeps the session; the in-memory map is a fast path only.
+    // Never ship tokens this way to production web.
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    try {
+      const stored = await AsyncStorage.getItem(key);
+      cache.set(key, stored);
+      return stored;
+    } catch {
+      return cache.get(key) ?? null;
+    }
   }
   return SecureStore.getItemAsync(secureKey(key));
 };
 
 const secureSet = async (key: string, value: string | null) => {
   cache.set(key, value);
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web') {
+    try {
+      if (value === null) await AsyncStorage.removeItem(key);
+      else await AsyncStorage.setItem(key, value);
+    } catch {
+      // In-memory cache already updated; persistence is best-effort on web.
+    }
+    return;
+  }
   if (value === null) await SecureStore.deleteItemAsync(secureKey(key));
   else await SecureStore.setItemAsync(secureKey(key), value);
 };

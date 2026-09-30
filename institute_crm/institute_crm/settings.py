@@ -285,7 +285,10 @@ if _DATABASE_URL:
         DATABASES = {
             "default": dj_database_url.parse(
                 _DATABASE_URL,
-                conn_max_age=env_int("DB_CONN_MAX_AGE", 60),
+                # 30s (not 60s): managed Postgres drops idle TLS sockets aggressively;
+                # a shorter reuse window plus CONN_HEALTH_CHECKS + keepalives keeps a
+                # "SSL error: bad record mac" from spanning a full minute of 500s.
+                conn_max_age=env_int("DB_CONN_MAX_AGE", 30),
                 ssl_require=env_bool("DB_SSL_REQUIRE", default=not DEBUG),
             )
         }
@@ -307,7 +310,7 @@ else:
             "PASSWORD": env_str("DB_PASSWORD", required=True),
             "HOST": env_str("DB_HOST", "127.0.0.1"),
             "PORT": env_str("DB_PORT", "5432"),
-            "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
+            "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 30),
         }
     }
     _tune_persistent_connection(DATABASES["default"])
@@ -388,7 +391,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
+    # :8081 covers `expo start --web`; native builds ignore CORS but web builds fail
+    # closed without it.
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,"
+    "http://localhost:8081,http://127.0.0.1:8081",
 )
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 CORS_ALLOW_CREDENTIALS = True
@@ -444,11 +450,11 @@ if HAS_SPECTACULAR:
 
 
 # ---------------------------------------------------------------------------
-# RAG platform flags (Phase 1 groundwork only - see RAG_IMPLEMENTATION_PLAN.md)
+# RAG platform flags (see RAG_IMPLEMENTATION_PLAN.md)
 # ---------------------------------------------------------------------------
-# The `rag` app does not exist yet. These flags exist so that the database and
-# readiness checks, deployment manifests, and env templates are already correct when
-# it lands, and so that nothing can enable a half-configured vector pipeline.
+# The `rag` app exists and mounts at `/api/v1/rag/`. These flags keep the vector
+# pipeline disabled unless explicitly enabled, so nothing can run a
+# half-configured embedding index.
 RAG_ENABLED = env_bool("RAG_ENABLED", default=False)
 RAG_VECTOR_REPOSITORY = "fake" if IS_TESTING else env_str("RAG_VECTOR_REPOSITORY", "pgvector")
 RAG_EMBEDDING_MODEL = env_str("RAG_EMBEDDING_MODEL", "text-embedding-3-small")

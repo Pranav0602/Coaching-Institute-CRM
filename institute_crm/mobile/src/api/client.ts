@@ -25,6 +25,7 @@ import {
   API_BASE_URL,
   COLD_BOOT_TIMEOUT_MS,
   HEALTHCHECK_URL,
+  LOGIN_TIMEOUT_MS,
   REFRESH_SKEW_MS,
   REQUEST_TIMEOUT_MS,
 } from '@/constants/config';
@@ -150,7 +151,13 @@ const refreshAccessToken = async (): Promise<string | null> => {
         res.data,
       );
       await tokens.rotate(data.access, data.refresh);
-      await accessExpiry.set(Date.now() + (data.access_expires_in ?? 0) * 1000);
+      if (typeof data.access_expires_in === 'number' && data.access_expires_in > 0) {
+        await accessExpiry.set(Date.now() + data.access_expires_in * 1000);
+      } else {
+        // Server did not report a lifetime: do not stamp `now` as the expiry, which
+        // would mark every token stale and force a refresh before the next request.
+        await accessExpiry.clear();
+      }
       events.onRefreshed(data.access);
       return data.access;
     } catch {
@@ -302,7 +309,11 @@ export interface LoginResponse {
 
 export const authApi = {
   login: (username: string, password: string) =>
-    api.post<LoginResponse>('/accounts/auth/login/', { username, password }),
+    api.post<LoginResponse>(
+      '/accounts/auth/login/',
+      { username, password },
+      { timeout: LOGIN_TIMEOUT_MS },
+    ),
 
   me: () => api.get<User>('/accounts/auth/me/'),
 

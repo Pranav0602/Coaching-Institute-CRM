@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
   Dashboard, People, School, Assignment, EventNote,
-  AttachMoney, Analytics, MeetingRoom, MenuBook, Badge,
+  AttachMoney, Analytics, MenuBook, Badge,
   SupportAgent, RecordVoiceOver, Quiz, ReceiptLong, FiberManualRecord, LibraryBooks, AutoStories
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../../context/AuthContext';
@@ -86,31 +86,35 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Student Portal', icon: <Dashboard />, path: '/' },
           { text: 'Class Timetable', icon: <EventNote />, path: '/timetable' },
           { text: 'My Assignments', icon: <Assignment />, path: '/assignments' },
-          { text: 'Exam Performance', icon: <Quiz />, path: '/marks' },
-          { text: 'Fee Receipts', icon: <ReceiptLong />, path: '/fees' },
+          // No /marks or /fees routes exist; every other tap fell through to `*`
+          // and bounced to `/` with no explanation. Point at the real pages.
+          { text: 'Exam Performance', icon: <Quiz />, path: '/exams' },
+          { text: 'Fee Receipts', icon: <ReceiptLong />, path: '/finance' },
           { text: 'Study Materials', icon: <MenuBook />, path: '/materials' },
         ];
       case ROLES.PARENT:
+        // No dedicated child-attendance/marks/fees routes exist; the ParentDashboard
+        // at `/` renders the child's attendance, scores and dues. Listing dead
+        // paths only bounced to `/` via the `*` route, so keep the single entry.
         return [
           { text: 'Parent Portal', icon: <Dashboard />, path: '/' },
-          { text: 'Child Attendance %', icon: <EventNote />, path: '/child-attendance' },
-          { text: 'Test Scores', icon: <Quiz />, path: '/child-marks' },
-          { text: 'Fee Dues & History', icon: <ReceiptLong />, path: '/child-fees' },
         ];
       case ROLES.ACCOUNTANT:
+        // No /collection, /installments, /receipts or /refunds routes exist; the
+        // FinancePage at `/finance` covers collection, installments, receipts and
+        // refunds. Listing dead paths only bounced to `/` via the `*` route.
         return [
           { text: 'Accountant Desk', icon: <Dashboard />, path: '/' },
-          { text: 'Fee Collection', icon: <AttachMoney />, path: '/collection' },
-          { text: 'Pending Installments', icon: <ReceiptLong />, path: '/installments' },
-          { text: 'Record Payment & Receipt', icon: <ReceiptLong />, path: '/receipts' },
-          { text: 'Refund Requests', icon: <AttachMoney />, path: '/refunds' },
+          { text: 'Financial Accounts', icon: <AttachMoney />, path: '/finance' },
+          { text: 'Reports & Analytics', icon: <Analytics />, path: '/reports' },
         ];
       case ROLES.RECEPTIONIST:
+        // No /visitors, /enquiries or /id-cards routes exist. Lead enquiries live
+        // under Lead Management and student records under Students.
         return [
           { text: 'Reception Desk', icon: <Dashboard />, path: '/' },
-          { text: 'Walk-in Visitor Entry', icon: <MeetingRoom />, path: '/visitors' },
-          { text: 'New Lead Enquiry', icon: <RecordVoiceOver />, path: '/enquiries' },
-          { text: 'Print Student ID Card', icon: <Badge />, path: '/id-cards' },
+          { text: 'New Lead Enquiry', icon: <RecordVoiceOver />, path: '/leads' },
+          { text: 'Students & ID Cards', icon: <Badge />, path: '/students' },
         ];
       default:
         return [{ text: 'Dashboard', icon: <Dashboard />, path: '/' }];

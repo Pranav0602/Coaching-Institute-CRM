@@ -18,4 +18,8 @@ COPY . /app/
 
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "institute_crm.wsgi:application"]
+# Run migrations before serving traffic. Without this, a Docker/AWS deploy that
+# ships new model fields (e.g. communications_notification.sender_id) serves code
+# against a stale schema and every affected endpoint 500s. Matches render.yaml
+# (gthread 2x4, timeout 60) which is sized for Starter instances.
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn institute_crm.wsgi:application --bind 0.0.0.0:8000 --worker-class gthread --workers 2 --threads 4 --timeout 60"]

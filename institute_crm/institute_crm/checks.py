@@ -21,6 +21,7 @@ Error codes
 ``crm.E002``  RAG is enabled but the ``vector`` extension is unavailable.
 ``crm.E003``  Insecure production configuration.
 ``crm.E004``  Token revocation is enabled but its migrations have not been run.
+``crm.E005``  Unapplied migrations (schema drift, e.g. missing communications.sender).
 ``crm.W001``  Media root is not writable.
 ``crm.W002``  RAG embedding dimension looks inconsistent with the selected model.
 """
@@ -250,6 +251,48 @@ def check_token_blacklist_migrated(app_configs, **kwargs) -> list[CheckMessage]:
     ]
 
 
+@register(Tags.database, deploy=True)
+def check_unapplied_migrations(app_configs, **kwargs) -> list[CheckMessage]:
+    """Fail ``check --deploy`` when the database schema is behind the code.
+
+    This is the generic guard for the ``column communications_notification.sender_id
+    does not exist`` class of outage: code that selects ``sender_id``/``batch_id``
+    ships while the production database still lacks migration ``communications.0002``.
+    ``build.sh`` runs ``migrate`` first, so a non-empty plan here means the migrate
+    targeted the wrong database (or was skipped, as in the Docker/AWS path before
+    the entrypoint fix) and the deploy must stop instead of serving 500s.
+    """
+    from django.db.migrations.executor import MigrationExecutor
+
+    try:
+        connection = connections["default"]
+        executor = MigrationExecutor(connection)
+        # `migration_plan` returns the migrations that would still be applied.
+        plan = executor.migration_plan(executor.loader.project_state(nodes=None, at_end=True))
+    except OperationalError:
+        # Database unreachable: reported by other checks / readiness, not here.
+        return []
+    except Exception:  # pragma: no cover - defensive
+        logger.warning("Could not compute migration plan.", exc_info=True)
+        return []
+    if not plan:
+        return []
+    # Show at most a handful of labels so the deploy log stays readable.
+    labels = ", ".join(f"{app}.{name}" for app, name in [m.migration for m in plan[:5]])
+    suffix = f" (+{len(plan) - 5} more)" if len(plan) > 5 else ""
+    return [
+        Error(
+            f"{len(plan)} unapplied migration(s) detected ({labels}{suffix}); "
+            "the database schema is behind the code and affected endpoints will 500.",
+            hint="Run `python manage.py migrate --noinput` against the same database "
+            "the service uses, then re-run `manage.py showmigrations --plan`. "
+            "build.sh and the Docker entrypoint already do this; a failure here "
+            "means they targeted different databases or were skipped.",
+            id="crm.E005",
+        )
+    ]
+
+
 @register()
 def check_media_root_writable(app_configs, **kwargs) -> list[CheckMessage]:
     """Profile photos and documents are written here; surface permission issues early."""
@@ -307,6 +350,7 @@ def run_readiness_checks() -> list[str]:
         check_database_backend,
         check_pgvector_extension,
         check_token_blacklist_migrated,
+        check_unapplied_migrations,
     ):
         for message in check(None):
             if isinstance(message, Error):

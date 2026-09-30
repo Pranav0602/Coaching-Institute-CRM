@@ -1,9 +1,8 @@
 """
 Root URL configuration.
 
-API surface is versioned under ``/api/v1/``. The ``rag`` app, when it lands, mounts at
-``/api/v1/assistant/`` (customer chat) and ``/api/v1/rag/`` (admin-only editorial control
-plane) - see ``RAG_IMPLEMENTATION_PLAN.md`` section 9.
+API surface is versioned under ``/api/v1/``. The ``rag`` app mounts at
+``/api/v1/rag/`` (query/ingest/documents) - see ``RAG_IMPLEMENTATION_PLAN.md``.
 """
 from django.conf import settings
 from django.conf.urls.static import static
@@ -50,19 +49,6 @@ urlpatterns = [
     path("api/v1/rag/", include("rag.urls")),
     path("api/v1/analytics/dashboard/", DashboardAnalyticsView.as_view(), name='dashboard_analytics'),
 ]
-
-# Reserved mount points for the RAG app. Activated only once the app exists and
-# RAG_ENABLED is on, so this file needs no further edit at that point.
-if getattr(settings, "RAG_ENABLED", False):
-    try:
-        urlpatterns += [
-            path("api/v1/assistant/", include("rag.api.customer_urls")),
-            path("api/v1/rag/", include("rag.api.admin_urls")),
-        ]
-    except ImportError:
-        # RAG_ENABLED was set before the app was installed; the system checks report
-        # this properly, so failing to boot here would only obscure the real message.
-        pass
 
 if settings.DEBUG:
     # In production, media is served by nginx/S3/CloudFront - never by Django.
