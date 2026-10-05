@@ -7,6 +7,7 @@ import { PageHeader } from './PageLayout';
 import api, { unwrapList, unwrapData } from '../services/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import { SendBatchNotificationModal } from '../components/notifications/SendBatchNotificationModal';
+import { DeliveryFunnelDialog } from '../components/notifications/DeliveryFunnelDialog';
 
 const timeAgo = (iso) => {
   if (!iso) return '';
@@ -26,6 +27,7 @@ export const NotificationsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [funnel, setFunnel] = useState(null);
 
   const canSend = [ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.TEACHER].includes(activeRole);
 
@@ -108,6 +110,15 @@ export const NotificationsPage = () => {
                       </Typography>
                       {n.batch_name && <Chip size="small" label={n.batch_name} variant="outlined" />}
                       {!n.is_read && tab !== 'sent' && <Chip size="small" color="error" label="New" sx={{ height: 20 }} />}
+                      {tab === 'sent' && (n.channel === 'WHATSAPP' || n.channel === 'ALL') && (
+                        <Chip
+                          size="small"
+                          label="Funnel"
+                          variant="outlined"
+                          color="primary"
+                          onClick={(e) => { e.stopPropagation(); setFunnel({ campaignId: n.campaign_id, title: n.title }); }}
+                        />
+                      )}
                     </Box>
                   }
                   secondary={
@@ -128,6 +139,12 @@ export const NotificationsPage = () => {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSent={() => { setModalOpen(false); fetchList(tab); }}
+      />
+      <DeliveryFunnelDialog
+        open={!!funnel}
+        campaignId={funnel?.campaignId}
+        campaignTitle={funnel?.title}
+        onClose={() => setFunnel(null)}
       />
     </Box>
   );

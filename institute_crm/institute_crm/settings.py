@@ -462,6 +462,48 @@ RAG_EMBEDDING_DIMENSIONS = env_int("RAG_EMBEDDING_DIMENSIONS", 1536)
 
 
 # ---------------------------------------------------------------------------
+# Celery / Redis (WhatsApp dispatch queue - see WHATSAPP_NOTIFICATION_IMPLEMENTATION_PLAN.md)
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = env_str(
+    "CELERY_BROKER_URL",
+    default="",
+)
+# Allow deriving a Upstash TLS broker URL from the REST credentials when no explicit
+# broker URL is set. Upstash exposes the same host over TLS TCP on 6379.
+if not CELERY_BROKER_URL:
+    _upstash_rest = env_str("UPSTASH_REDIS_REST_URL", "")
+    _upstash_token = env_str("UPSTASH_REDIS_REST_TOKEN", "")
+    if _upstash_rest and _upstash_token:
+        _host = _upstash_rest.replace("https://", "").replace("http://", "").strip("/")
+        CELERY_BROKER_URL = f"rediss://default:{_upstash_token}@{_host}:6379?ssl_cert_reqs=CERT_NONE"
+CELERY_RESULT_BACKEND = env_str("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", default=IS_TESTING)
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+# Stay under Meta's 80 msg/s ceiling with headroom.
+CELERY_TASK_ANNOTATIONS = {}
+
+# ---------------------------------------------------------------------------
+# WhatsApp Business Platform (Meta Cloud API)
+# ---------------------------------------------------------------------------
+WHATSAPP_ENABLED = env_bool("WHATSAPP_ENABLED", default=True)
+WHATSAPP_PROVIDER = env_str("WHATSAPP_PROVIDER", "MOCK")  # META_CLOUD | AWS_EUM | MOCK
+WHATSAPP_PHONE_NUMBER_ID = env_str("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_ACCESS_TOKEN = env_str("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_APP_SECRET = env_str("WHATSAPP_APP_SECRET", "")
+WHATSAPP_WEBHOOK_VERIFY_TOKEN = env_str("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")
+WHATSAPP_BUSINESS_ACCOUNT_ID = env_str("WHATSAPP_BUSINESS_ACCOUNT_ID", "")
+WHATSAPP_GRAPH_API_VERSION = env_str("WHATSAPP_GRAPH_API_VERSION", "v19.0")
+# Monthly conversation spend cap in USD; 0 disables enforcement.
+WHATSAPP_MONTHLY_BUDGET_USD = env_str("WHATSAPP_MONTHLY_BUDGET_USD", "0")
+
+
+# ---------------------------------------------------------------------------
 # Security headers (applied when running without DEBUG)
 # ---------------------------------------------------------------------------
 if not DEBUG:

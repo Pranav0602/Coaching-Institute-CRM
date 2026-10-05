@@ -617,6 +617,38 @@ class AttendanceService:
             ip_address=ip_address,
         )
 
+        # WhatsApp alerts to parents/students for ABSENT and LATE marks (best-effort,
+        # never blocks attendance recording).
+        try:
+            from communications.services import CommunicationService
+
+            for record in touched:
+                status_value = getattr(record, "status", None)
+                if status_value not in ("ABSENT", "LATE"):
+                    continue
+                template_key = "STUDENT_ABSENT_ALERT" if status_value == "ABSENT" else "STUDENT_LATE_ALERT"
+                student_user = User.objects.filter(pk=record.student_id).first()
+                if student_user is None:
+                    continue
+                CommunicationService.dispatch_system_event(
+                    template_key=template_key,
+                    student=student_user,
+                    parameters={
+                        "student_name": student_user.get_full_name() or student_user.username,
+                        "status": status_value,
+                        "subject": getattr(getattr(lecture, "timetable", None) and lecture.timetable.subject, "name", "") or "class",
+                        "date": str(lecture.date),
+                    },
+                    title=f"Attendance: {student_user.username} marked {status_value}",
+                    message=f"{student_user.username} was marked {status_value} on {lecture.date}.",
+                )
+        except Exception as exc:  # noqa: BLE001 - alerting must not break attendance marking
+            import logging
+
+            logging.getLogger("institute_crm.communications").warning(
+                "Attendance WhatsApp alert failed: %s", exc
+            )
+
         return {
             "lecture_id": str(lecture.pk),
             "lecture_status": lecture.status,

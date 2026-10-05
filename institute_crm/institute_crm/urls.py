@@ -11,6 +11,7 @@ from django.urls import include, path
 
 from institute_crm.analytics_views import DashboardAnalyticsView
 from institute_crm.health_views import HealthView, ReadinessView
+from communications.views import WhatsAppPreferenceView
 from django.http import JsonResponse
 
 
@@ -48,6 +49,7 @@ urlpatterns = [
     path("api/v1/communications/", include("communications.urls")),
     path("api/v1/rag/", include("rag.urls")),
     path("api/v1/analytics/dashboard/", DashboardAnalyticsView.as_view(), name='dashboard_analytics'),
+    path("api/v1/users/me/whatsapp-preferences/", WhatsAppPreferenceView.as_view(), name='whatsapp_preferences'),
 ]
 
 if settings.DEBUG:

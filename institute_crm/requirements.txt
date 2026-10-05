@@ -43,12 +43,15 @@ gunicorn>=21.2.0
 whitenoise>=6.6.0
 dj-database-url>=2.2.0
 
+# Async task queue for WhatsApp delivery dispatch
+celery>=5.4.0
+redis>=5.0.0
+# E.164 phone number normalization for WhatsApp recipients
+phonenumbers>=8.13.0
+
 # ---------------------------------------------------------------------------
 # Deliberately NOT added yet
 # ---------------------------------------------------------------------------
-# celery / redis        - RAG ingestion workers. Adding a broker before there is any
-#                         task to run would be dead configuration. Introduce alongside
-#                         the `rag` app (RAG_IMPLEMENTATION_PLAN.md 5.4).
 # openai / langchain    - provider choice is an open decision (plan 11.1).
 # python-dotenv         - settings.py has a dependency-free .env loader so a fresh
 #                         checkout boots before `pip install` runs.
