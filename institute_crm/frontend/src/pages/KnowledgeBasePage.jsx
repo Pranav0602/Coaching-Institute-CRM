@@ -139,14 +139,20 @@ const KnowledgeBasePage = () => {
       let text = '';
       if (allowedText.includes(file.type) || file.name.match(/\.(txt|md|csv)$/i)) {
         text = await file.text();
-      } else if (file.name.match(/\.(pdf|docx|doc)$/i)) {
-        // For PDF/DOCX we read as text fallback and instruct user to paste; real extraction would happen server-side
-        // Try to read as text (will be garbled for binary but we still allow)
-        try { text = await file.text(); } catch { text = ''; }
-        if (!text || text.length < 20 || text.includes('\uFFFD')) {
-          setFormError('PDF/DOCX direct parsing is not supported in-browser. Please copy-paste the text into the Write tab, or upload a .txt/.md file.');
+      } else if (file.name.match(/\.(pdf|docx)$/i)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/rag/extract-text/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        text = res?.data?.text || '';
+        if (!text) {
+          setFormError('No extractable text found in the file.');
           return;
         }
+      } else if (file.name.match(/\.doc$/i)) {
+        setFormError('Legacy .doc files are not supported. Please save as .docx, .pdf, or .txt.');
+        return;
       } else {
         text = await file.text();
       }
@@ -158,7 +164,7 @@ const KnowledgeBasePage = () => {
       setFormError(null);
       setFormTab(0); // switch to write tab to show content
     } catch (err) {
-      setFormError('Could not read file. Please try a .txt or .md file.');
+      setFormError(err?.detail || 'Could not read file. Please try a .txt/.md file or a text-based PDF.');
     }
   };
 
@@ -497,7 +503,7 @@ const KnowledgeBasePage = () => {
                 <CloudUpload sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
                 <Typography variant="body2" fontWeight={600} gutterBottom>Upload a document</Typography>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                  Supports .txt, .md, .csv directly. For PDF/DOCX, copy-paste text into the Write tab (browser cannot reliably extract PDFs).
+                   Supports .txt, .md, .csv, .pdf, .docx — PDF/DOCX text is extracted on the server.
                 </Typography>
                 <Button variant="outlined" component="label" startIcon={<CloudUpload />}>
                   Choose File

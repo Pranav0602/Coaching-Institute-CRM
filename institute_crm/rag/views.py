@@ -97,6 +97,56 @@ class KnowledgeDocumentViewSet(viewsets.ModelViewSet):
         IngestionService.index_document(doc)
 
 
+class DocumentTextExtractionView(APIView):
+    """
+    ``POST /api/v1/rag/extract-text/``
+    Accepts a document file (PDF, DOCX, TXT, MD, CSV) and returns its extracted text.
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrCounselorReadOnly]
+    MAX_FILE_BYTES = 10 * 1024 * 1024
+
+    def post(self, request):
+        upload = request.FILES.get('file')
+        if not upload:
+            return Response({'detail': 'No file provided (multipart field "file").'}, status=status.HTTP_400_BAD_REQUEST)
+        if upload.size > self.MAX_FILE_BYTES:
+            return Response({'detail': 'File too large (max 10 MB).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        name = (upload.name or '').lower()
+        try:
+            if name.endswith('.pdf'):
+                text = self._extract_pdf(upload)
+            elif name.endswith('.docx'):
+                text = self._extract_docx(upload)
+            elif name.endswith(('.txt', '.md', '.csv')):
+                text = upload.read().decode('utf-8', errors='replace')
+            else:
+                return Response({'detail': 'Unsupported file type. Use .pdf, .docx, .txt, .md or .csv.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            return Response({'detail': f'Could not extract text: {exc}'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        text = (text or '').strip()
+        if not text:
+            return Response({'detail': 'No extractable text found (scanned/image PDFs are not supported).'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response({'file_name': upload.name, 'text': text}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _extract_pdf(upload) -> str:
+        from pypdf import PdfReader
+        reader = PdfReader(upload)
+        return "\n".join((page.extract_text() or '') for page in reader.pages)
+
+    @staticmethod
+    def _extract_docx(upload) -> str:
+        import docx
+        document = docx.Document(upload)
+        parts = [p.text for p in document.paragraphs if p.text]
+        for table in document.tables:
+            for row in table.rows:
+                parts.append(' | '.join(cell.text for cell in row.cells))
+        return "\n".join(parts)
+
+
 class RagStatsView(APIView):
     """
     ``GET /api/v1/rag/stats/``
