@@ -66,7 +66,11 @@ class S3StorageService:
 
     def object_url(self, key: str) -> str:
         """Canonical (non-presigned) object URL. Useful for storing a reference only."""
-        return f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{key.lstrip('/')}"
+        endpoint = os.environ.get('AWS_ENDPOINT_URL') or f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com"
+        bucket = os.environ.get('AWS_STORAGE_BUCKET_NAME', S3_BUCKET_NAME)
+        if 'supabase' in endpoint:
+            return f"{endpoint.rstrip('/')}/{bucket}/{key.lstrip('/')}"
+        return f"https://{bucket}.s3.{AWS_REGION}.amazonaws.com/{key.lstrip('/')}"
 
     def upload_fileobj(self, fileobj, key: str, content_type: str | None = None) -> str | None:
         """Stream an open file object to S3 and return its object URL.
@@ -98,7 +102,7 @@ class S3StorageService:
                 fileobj,
                 S3_BUCKET_NAME,
                 key,
-                ExtraArgs={'ContentType': guessed_type, 'ACL': 'private'},
+                ExtraArgs={'ContentType': guessed_type},
             )
             logger.info(f"Uploaded {key} to s3://{S3_BUCKET_NAME}")
             return self.object_url(key)
