@@ -70,6 +70,7 @@ export const Sidebar = ({ open, onClose }) => {
         return [
           { text: 'Counselling Desk', icon: <Dashboard />, path: '/' },
           { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
+          { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
           { text: 'Scheduled Follow-ups', icon: <EventNote />, path: '/followups' },
           { text: 'Lead Conversion', icon: <School />, path: '/convert' },
         ];

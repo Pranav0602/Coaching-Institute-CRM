@@ -154,7 +154,7 @@ const AppContent = () => {
             <Route
               path="/knowledge-base"
               element={
-                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN]}>
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.ADMISSION_COUNSELOR]}>
                   <KnowledgeBasePage />
                 </RequireRole>
               }

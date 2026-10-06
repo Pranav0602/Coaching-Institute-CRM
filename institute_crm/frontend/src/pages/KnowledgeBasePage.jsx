@@ -10,6 +10,7 @@ import {
 } from '@mui/icons-material';
 import api from '../services/api';
 import { PageHeader, MetricCards } from './PageLayout';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const CATEGORY_OPTIONS = [
   { value: 'ADMISSION_POLICY', label: 'Admission Policy', icon: <Policy fontSize="small" /> },
@@ -36,6 +37,8 @@ function TabPanel({ children, value, index }) {
 }
 
 const KnowledgeBasePage = () => {
+  const { activeRole } = useAuth();
+  const canManage = activeRole === ROLES.SUPER_ADMIN || activeRole === ROLES.BRANCH_ADMIN;
   const [documents, setDocuments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [stats, setStats] = useState(null);
@@ -283,8 +286,8 @@ const KnowledgeBasePage = () => {
       <PageHeader
         title="Knowledge Base"
         subtitle="Manage Admission Policy, Refund Policy, FAQs and Course Syllabi for the RAG assistant. All published documents are automatically chunked and embedded."
-        action="Add Document"
-        onAction={() => handleOpenCreate('ADMISSION_POLICY')}
+        action={canManage ? 'Add Document' : undefined}
+        onAction={canManage ? () => handleOpenCreate('ADMISSION_POLICY') : undefined}
       />
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -292,7 +295,7 @@ const KnowledgeBasePage = () => {
       {!loading && <MetricCards items={metrics} />}
 
       {/* Category quick-create cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {canManage && <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%', borderLeft: '4px solid', borderLeftColor: 'primary.main' }}>
             <CardContent>
@@ -337,7 +340,7 @@ const KnowledgeBasePage = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+      </Grid>}
 
       {/* Toolbar */}
       <Card sx={{ mb: 2, p: 2 }}>
@@ -356,12 +359,16 @@ const KnowledgeBasePage = () => {
             </TextField>
           </Grid>
           <Grid item xs={12} md={4} sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-            <Tooltip title="Re-index all courses & built-in FAQs into the vector store">
-              <Button variant="outlined" startIcon={<Sync />} onClick={handleSyncCatalogue} disabled={syncing}>
-                {syncing ? 'Syncing…' : 'Sync Catalogue'}
-              </Button>
-            </Tooltip>
-            <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenCreate()}>Add Document</Button>
+            {canManage && (
+              <>
+                <Tooltip title="Re-index all courses & built-in FAQs into the vector store">
+                  <Button variant="outlined" startIcon={<Sync />} onClick={handleSyncCatalogue} disabled={syncing}>
+                    {syncing ? 'Syncing…' : 'Sync Catalogue'}
+                  </Button>
+                </Tooltip>
+                <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenCreate()}>Add Document</Button>
+              </>
+            )}
           </Grid>
         </Grid>
       </Card>
@@ -382,7 +389,7 @@ const KnowledgeBasePage = () => {
                 <TableCell sx={{ fontWeight: 700 }}>Chunks</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Published</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Updated</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                {canManage && <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -415,7 +422,7 @@ const KnowledgeBasePage = () => {
                       />
                     </TableCell>
                     <TableCell><Typography variant="caption">{doc.updated_at ? new Date(doc.updated_at).toLocaleDateString() : '—'}</Typography></TableCell>
-                    <TableCell align="right">
+                    {canManage && <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <Tooltip title={doc.is_published ? 'Unpublish (hide from RAG)' : 'Publish (make available to RAG)'}>
                           <IconButton size="small" onClick={()=>handleTogglePublish(doc)}>
@@ -425,7 +432,7 @@ const KnowledgeBasePage = () => {
                         <Tooltip title="Edit"><IconButton size="small" onClick={()=>handleOpenEdit(doc)}><EditOutlined fontSize="small"/></IconButton></Tooltip>
                         <Tooltip title="Delete"><IconButton size="small" onClick={()=>handleDelete(doc)}><DeleteOutline fontSize="small" color="error"/></IconButton></Tooltip>
                       </Stack>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>
                 );
               })}
