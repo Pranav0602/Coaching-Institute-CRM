@@ -128,7 +128,20 @@ class DocumentTextExtractionView(APIView):
         text = (text or '').strip()
         if not text:
             return Response({'detail': 'No extractable text found (scanned/image PDFs are not supported).'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        return Response({'file_name': upload.name, 'text': text}, status=status.HTTP_200_OK)
+
+        file_url = self._archive_to_s3(upload)
+        return Response({'file_name': upload.name, 'text': text, 'file_url': file_url}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _archive_to_s3(upload) -> str | None:
+        """Best-effort archive of the original file to Supabase S3; text extraction must not fail if storage is unavailable."""
+        try:
+            import uuid
+            from aws_services.s3_service import s3_service
+            key = f"knowledge_base/{uuid.uuid4().hex}_{upload.name}"
+            return s3_service.upload_fileobj(upload, key, content_type=upload.content_type)
+        except Exception:
+            return None
 
     @staticmethod
     def _extract_pdf(upload) -> str:

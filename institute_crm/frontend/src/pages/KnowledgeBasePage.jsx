@@ -146,6 +146,10 @@ const KnowledgeBasePage = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         text = res?.data?.text || '';
+        const fileUrl = res?.data?.file_url;
+        if (fileUrl) {
+          setForm(prev => ({ ...prev, source_url: fileUrl }));
+        }
         if (!text) {
           setFormError('No extractable text found in the file.');
           return;
