@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from users_profiles.models import StudentProfile, TeacherProfile, ParentProfile, StudentParent
 from accounts.serializers import UserSerializer
@@ -126,7 +128,6 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         if not softwares and obj.source_softwares:
             # Preserve a useful roster list while exposing the untouched source
             # cell separately for audit and exact round-tripping.
-            import re
             softwares = [
                 value.strip()
                 for value in re.split(r'\s*[+;]\s*', obj.source_softwares)
