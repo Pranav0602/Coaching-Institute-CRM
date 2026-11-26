@@ -96,7 +96,7 @@ const ParentHomeScreen = () => {
                       {child.user_detail?.full_name || child.user_detail?.username}
                     </Text>
                     <Text variant="bodySmall" style={styles.muted} numberOfLines={1}>
-                      {child.enrollment_number}
+                      {child.reg_no ?? child.enrollment_number}
                       {child.batch_name ? ` · ${child.batch_name}` : ''}
                     </Text>
                   </View>

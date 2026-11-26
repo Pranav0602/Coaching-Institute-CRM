@@ -53,7 +53,9 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
         payload so reception staff can open a single card without paging through
         every student in the branch first.
         """
-        profile = self.get_queryset().filter(pk=pk).select_related('user', 'batch').first()
+        profile = self.get_queryset().filter(pk=pk).select_related(
+            'user', 'batch', 'batch__course', 'batch__branch'
+        ).first()
         if profile is None:
             return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -67,8 +69,11 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
                 'full_name': profile.user.get_full_name() or profile.user.username,
                 'username': profile.user.username,
                 'phone': profile.user.phone,
+                'secondary_phone': profile.secondary_phone,
                 'email': profile.user.email,
-                'enrollment_number': profile.enrollment_number,
+                'reg_no': profile.reg_no,
+                # Compatibility alias for clients that still read the old key.
+                'enrollment_number': profile.reg_no,
                 'qr_payload': profile.qr_payload,
                 'dob': profile.dob,
                 'gender': profile.gender,
@@ -87,7 +92,7 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='resolve-qr')
     def resolve_qr(self, request):
-        """Look up a student from a scanned ``graphix://student/<enrollment_no>`` code."""
+        """Look up a student from a scanned ``graphix://student/<reg_no>`` code."""
         assert_role(
             request.user,
             QR_RESOLVER_ROLES,

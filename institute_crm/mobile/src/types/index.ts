@@ -246,14 +246,20 @@ export interface StudentProfile {
   id: string;
   user: string;
   user_detail: User;
-  enrollment_number: string;
+  reg_no: string;
+  /** @deprecated Legacy alias for `reg_no`; kept for older API responses. */
+  enrollment_number?: string;
   dob: string | null;
   gender: string;
   blood_group: string | null;
   address: string | null;
   emergency_contact: string | null;
+  secondary_phone?: string | null;
   batch: string | null;
   batch_name: string | null;
+  branch_name?: string | null;
+  course_title?: string | null;
+  softwares?: string[];
   documents_url: string[];
   qr_payload: string;
   created_at: string;
@@ -265,8 +271,11 @@ export interface StudentIdCard {
   full_name: string;
   username: string;
   phone: string | null;
+  secondary_phone?: string | null;
   email: string;
-  enrollment_number: string;
+  reg_no: string;
+  /** @deprecated Legacy alias for `reg_no`; kept for older API responses. */
+  enrollment_number?: string;
   qr_payload: string;
   dob: string | null;
   gender: string;
@@ -378,6 +387,21 @@ export interface Refund {
   reason: string;
   status: 'REQUESTED' | 'APPROVED' | 'REJECTED';
   processed_by: string | null;
+  created_at: string;
+}
+
+export interface StudyMaterial {
+  id: string;
+  subject: string;
+  subject_title?: string;
+  course_title?: string;
+  batch: string | null;
+  batch_name?: string;
+  title: string;
+  material_type: 'PDF' | 'VIDEO' | 'NOTES' | 'LINK';
+  file_url: string | null;
+  external_link: string | null;
+  uploader_name?: string;
   created_at: string;
 }
 

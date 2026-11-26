@@ -5,6 +5,7 @@ import api, { unwrapList } from '../services/api';
 
 export const StudentsPage = () => {
   const [students, setStudents] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,16 +19,19 @@ export const StudentsPage = () => {
     setErrorDetail('');
     Promise.all([
       api.get('/accounts/users/', { params: { role: 'STUDENT' } }),
+      api.get('/profiles/students/').catch(() => ({ data: [] })),
       api.get('/accounts/branches/').catch(() => ({ data: [] })),
       api.get('/accounts/roles/').catch(() => ({ data: [] })),
     ])
-      .then(([studentRes, branchRes, roleRes]) => {
+      .then(([studentRes, profileRes, branchRes, roleRes]) => {
         setStudents(unwrapList(studentRes));
+        setProfiles(unwrapList(profileRes));
         setBranches(unwrapList(branchRes));
         setRoles(unwrapList(roleRes));
       })
       .catch((err) => {
         setStudents([]);
+        setProfiles([]);
         setError(err?.detail || 'Could not load students.');
         setErrorDetail(err?.message || '');
       })
@@ -68,6 +72,23 @@ export const StudentsPage = () => {
     fetchData();
   };
 
+  // Merge each student account with its profile so the roster can show the
+  // workbook columns (BRANCH / REG NO / STUDENT NAME / MOB.NO / COURSE / SOFTWARES).
+  const profileByUser = new Map(profiles.map((p) => [p.user, p]));
+  const rosterRows = students.map((s) => {
+    const profile = profileByUser.get(s.id) || {};
+    const mobiles = [s.phone, profile.secondary_phone].filter(Boolean);
+    return {
+      ...s,
+      branch_name: profile.branch_name || s.branch_name,
+      reg_no: profile.reg_no ?? profile.enrollment_number,
+      mobile: mobiles.join(' / '),
+      course_title: profile.course_title,
+      softwares: Array.isArray(profile.softwares) ? profile.softwares.join(', ') : '',
+      is_active: s.is_active ? 'Active' : 'Inactive',
+    };
+  });
+
   return (
     <>
       <SimplePage
@@ -82,20 +103,19 @@ export const StudentsPage = () => {
         onRetry={fetchData}
         tableTitle="Student roster"
         columns={[
-          { key: 'full_name', label: 'Student' },
-          { key: 'username', label: 'Username' },
-          { key: 'email', label: 'Email' },
           { key: 'branch_name', label: 'Branch' },
+          { key: 'reg_no', label: 'REG NO' },
+          { key: 'full_name', label: 'Student Name' },
+          { key: 'mobile', label: 'Mob. No' },
+          { key: 'course_title', label: 'Course' },
+          { key: 'softwares', label: 'Softwares' },
           {
             key: 'is_active',
             label: 'Status',
             chip: (value) => (value ? 'success' : 'default'),
           },
         ]}
-        rows={students.map((s) => ({
-          ...s,
-          is_active: s.is_active ? 'Active' : 'Inactive',
-        }))}
+        rows={rosterRows}
         onDelete={handleDelete}
         emptyMessage="No students yet. Use “Add Student” to enrol the first one."
       />

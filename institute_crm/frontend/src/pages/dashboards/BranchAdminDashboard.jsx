@@ -121,7 +121,7 @@ export const BranchAdminDashboard = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Enrollment No</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>REG NO</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Email Address</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Assigned Batch</TableCell>
@@ -131,7 +131,7 @@ export const BranchAdminDashboard = () => {
           <TableBody>
             {students.map((s) => (
               <TableRow key={s.id}>
-                <TableCell sx={{ fontWeight: 600 }}>{s.enrollment_number}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{s.reg_no ?? s.enrollment_number}</TableCell>
                 <TableCell>
                   {s.user_detail ? `${s.user_detail.first_name} ${s.user_detail.last_name}`.trim() || s.user_detail.username : 'Student'}
                 </TableCell>

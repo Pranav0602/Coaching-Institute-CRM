@@ -144,7 +144,7 @@ const IdCardsScreen = () => {
                   {student.user_detail?.full_name || student.user_detail?.username}
                 </Text>
                 <Text variant="bodySmall" style={styles.muted} numberOfLines={1}>
-                  {student.enrollment_number}
+                  {student.reg_no ?? student.enrollment_number}
                   {student.batch_name ? ` · ${student.batch_name}` : ''}
                 </Text>
               </View>
@@ -162,7 +162,7 @@ const IdCardsScreen = () => {
                 {card.full_name}
               </Text>
             </View>
-            <Text variant="bodyMedium">{card.enrollment_number}</Text>
+            <Text variant="bodyMedium">{card.reg_no ?? card.enrollment_number}</Text>
             <Text variant="bodySmall" style={styles.muted}>
               {[card.course_title, card.batch_name, card.branch_name].filter(Boolean).join(' · ')}
             </Text>
@@ -188,7 +188,7 @@ const IdCardsScreen = () => {
                 mode="text"
                 onPress={() =>
                   void shareText(
-                    `${card.full_name}\n${card.enrollment_number}\n${card.qr_payload}`,
+                    `${card.full_name}\n${card.reg_no ?? card.enrollment_number}\n${card.qr_payload}`,
                     'Student ID',
                   )
                 }

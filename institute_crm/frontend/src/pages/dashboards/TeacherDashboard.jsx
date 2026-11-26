@@ -50,7 +50,7 @@ export const TeacherDashboard = () => {
         const formatted = list.map(s => ({
           id: s.id,
           name: s.user_detail ? `${s.user_detail.first_name} ${s.user_detail.last_name}`.trim() || s.user_detail.username : 'Student',
-          roll: s.enrollment_number,
+          roll: s.reg_no ?? s.enrollment_number,
           email: s.user_detail?.email || '',
           batchName: s.batch_name || 'Assigned Batch',
           status: 'PRESENT'
@@ -192,7 +192,7 @@ export const TeacherDashboard = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Enrollment No</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>REG NO</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Email Address</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Batch / Section</TableCell>
@@ -220,7 +220,7 @@ export const TeacherDashboard = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Roll / Enrollment</TableCell>
+                <TableCell>REG NO</TableCell>
                 <TableCell>Student Name</TableCell>
                 <TableCell>Present?</TableCell>
               </TableRow>

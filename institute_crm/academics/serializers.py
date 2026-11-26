@@ -158,6 +158,13 @@ class CourseEnrolmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source="course.title", read_only=True)
     batch_name = serializers.CharField(source="batch.name", read_only=True)
     branch_name = serializers.CharField(source="batch.branch.name", read_only=True)
+    branch_code = serializers.CharField(source="batch.branch.code", read_only=True)
+    # Roster columns: REG NO / MOB.NO come from the linked student profile/user;
+    # COURSE is above; SOFTWARES is stored per enrolment (see the model).
+    reg_no = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    mobile = serializers.SerializerMethodField()  # MOB.NO alias for `phone`
+    secondary_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = CourseEnrolment
@@ -166,11 +173,17 @@ class CourseEnrolmentSerializer(serializers.ModelSerializer):
             "student",
             "student_name",
             "student_username",
+            "reg_no",
+            "phone",
+            "mobile",
+            "secondary_phone",
             "course",
             "course_title",
             "batch",
             "batch_name",
             "branch_name",
+            "branch_code",
+            "softwares",
             "enrolled_at",
             "status",
         ]
@@ -179,6 +192,38 @@ class CourseEnrolmentSerializer(serializers.ModelSerializer):
             # Defaulted from the batch by EnrolmentService when omitted.
             "course": {"required": False},
         }
+
+    def _profile(self, obj):
+        try:
+            return obj.student.student_profile
+        except Exception:
+            return None
+
+    def validate_softwares(self, value):
+        """Keep SOFTWARES a list of names, never one comma-separated string."""
+        if value in (None, ''):
+            return []
+        if isinstance(value, str) or not isinstance(value, list):
+            raise serializers.ValidationError(
+                "Send softwares as a list of names, e.g. [\"AutoCAD\", \"SolidWorks\"]."
+            )
+        if not all(isinstance(item, str) for item in value):
+            raise serializers.ValidationError("Every software name must be a string.")
+        return [item.strip() for item in value if item and item.strip()]
+
+    def get_reg_no(self, obj):
+        profile = self._profile(obj)
+        return getattr(profile, "reg_no", None)
+
+    def get_phone(self, obj):
+        return obj.student.phone
+
+    def get_mobile(self, obj):
+        return obj.student.phone
+
+    def get_secondary_phone(self, obj):
+        profile = self._profile(obj)
+        return getattr(profile, "secondary_phone", None)
 
 
 class EnrolmentTransferSerializer(serializers.Serializer):

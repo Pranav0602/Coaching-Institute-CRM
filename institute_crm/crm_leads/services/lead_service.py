@@ -77,7 +77,7 @@ class LeadService:
         enrollment_no = f"ENR/{lead.branch.code}/{timezone.now().year}/{uuid.uuid4().hex[:5].upper()}"
         student_profile = StudentProfile.objects.create(
             user=student_user,
-            enrollment_number=enrollment_no,
+            reg_no=enrollment_no,
             batch=batch
         )
 
@@ -128,7 +128,7 @@ class LeadService:
             <li><strong>Portal URL:</strong> https://crm.coachinginstitute.com/login</li>
             <li><strong>Username:</strong> {username}</li>
             <li><strong>Temporary Password:</strong> {temp_password}</li>
-            <li><strong>Enrollment No:</strong> {enrollment_no}</li>
+            <li><strong>Reg No:</strong> {enrollment_no}</li>
             <li><strong>Batch:</strong> {batch.name}</li>
         </ul>
         <p>Please change your password upon your first login.</p>
@@ -149,6 +149,8 @@ class LeadService:
             "lead_id": str(lead.id),
             "student_user_id": str(student_user.id),
             "username": username,
+            "reg_no": enrollment_no,
+            # Compatibility alias for clients that still read the old key.
             "enrollment_number": enrollment_no,
             "admission_number": admission.admission_number,
             "temporary_password": temp_password

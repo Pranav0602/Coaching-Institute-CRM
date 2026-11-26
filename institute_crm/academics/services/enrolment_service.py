@@ -66,7 +66,9 @@ class EnrolmentService:
         """
         queryset = (
             active(CourseEnrolment)
-            .select_related("student", "course", "batch", "batch__branch")
+            .select_related(
+                "student", "student__student_profile", "course", "batch", "batch__branch"
+            )
             .order_by("-enrolled_at", "student__first_name")
         )
         queryset = scope_to_branch(queryset, actor, branch_path="batch__branch")
@@ -109,6 +111,7 @@ class EnrolmentService:
                 | Q(student__last_name__icontains=search)
                 | Q(student__username__icontains=search)
                 | Q(student__email__icontains=search)
+                | Q(student__student_profile__reg_no__icontains=search)
             )
         return queryset
 
@@ -173,6 +176,7 @@ class EnrolmentService:
                 course=course,
                 batch=batch,
                 status=data.get("status") or STATUS_ACTIVE,
+                softwares=data.get("softwares") or [],
             )
         except IntegrityError as exc:
             # unique_together ('student', 'course') covers soft-deleted rows too.
@@ -302,6 +306,7 @@ class EnrolmentService:
 
         batch = payload.pop("batch", None)
         status = payload.pop("status", None)
+        softwares = payload.pop("softwares", None)
 
         if batch is not None and batch.pk != enrolment.batch_id:
             enrolment = EnrolmentService.transfer_batch(
@@ -310,6 +315,17 @@ class EnrolmentService:
         if status is not None:
             enrolment = EnrolmentService.set_status(
                 actor=actor, enrolment=enrolment, status=status, ip_address=ip_address
+            )
+        if softwares is not None and softwares != enrolment.softwares:
+            previous = enrolment.softwares
+            enrolment.softwares = softwares
+            enrolment.save(update_fields=["softwares"])
+            audit.record_audit(
+                actor=actor,
+                action=audit.UPDATE,
+                instance=enrolment,
+                changes={"softwares": {"from": previous, "to": softwares}},
+                ip_address=ip_address,
             )
         return enrolment
 

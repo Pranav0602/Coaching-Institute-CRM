@@ -20,6 +20,7 @@ import type {
   TimetableEntry,
   WeekTimetable,
   Exam,
+  StudyMaterial,
 } from '@/types';
 
 export const coursesApi = {
@@ -81,6 +82,10 @@ export const studentsApi = {
     ),
 };
 
+export const studyMaterialsApi = {
+  list: (params?: QueryParams) => api.getList<StudyMaterial>('/academics/study-materials/', params),
+};
+
 export const academicsApi = {
   courses: coursesApi,
   batches: batchesApi,
@@ -88,6 +93,7 @@ export const academicsApi = {
   lectures: lecturesApi,
   attendance: attendanceApi,
   students: studentsApi,
+  studyMaterials: studyMaterialsApi,
 };
 
 export const examsApi = {

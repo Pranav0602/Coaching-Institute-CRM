@@ -50,7 +50,7 @@ class BatchNotificationTests(TestCase):
         self.student = User.objects.create_user(
             username='stud1', email='stud1@test.com', password='pass12345',
             role=self.role_student, branch=self.branch_a)
-        StudentProfile.objects.create(user=self.student, enrollment_number='ENR001', batch=self.batch_a)
+        StudentProfile.objects.create(user=self.student, reg_no='ENR001', batch=self.batch_a)
         CourseEnrolment.objects.create(
             student=self.student, course=self.course, batch=self.batch_a, status='ACTIVE')
 

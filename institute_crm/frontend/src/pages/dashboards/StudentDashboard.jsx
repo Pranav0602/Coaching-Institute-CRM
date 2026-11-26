@@ -13,7 +13,7 @@ export const StudentDashboard = () => {
     <Box>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>Student Portal & Academic Overview</Typography>
-        <Typography color="text.secondary">Welcome back, Rohan Mehta | Enrollment No: ENR-DEL-2026-001</Typography>
+        <Typography color="text.secondary">Welcome back, Rohan Mehta | REG NO: ENR-DEL-2026-001</Typography>
       </Box>
 
       {/* KPI Cards */}

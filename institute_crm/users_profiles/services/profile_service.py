@@ -26,8 +26,8 @@ class ProfileService:
         search: str | None = None,
     ) -> QuerySet[StudentProfile]:
         qs = StudentProfile.objects.filter(is_deleted=False).select_related(
-            'user', 'user__branch', 'batch', 'batch__course'
-        )
+            'user', 'user__branch', 'batch', 'batch__course', 'batch__branch'
+        ).prefetch_related('user__enrolments__course')
 
         if batch_id:
             qs = qs.filter(batch_id=batch_id)
@@ -45,7 +45,7 @@ class ProfileService:
                 | Q(user__last_name__icontains=search)
                 | Q(user__username__icontains=search)
                 | Q(user__email__icontains=search)
-                | Q(enrollment_number__icontains=search)
+                | Q(reg_no__icontains=search)
             )
 
         # Scoping based on actor role
@@ -114,7 +114,11 @@ class ProfileService:
         profile: StudentProfile,
         data: dict[str, Any],
     ) -> StudentProfile:
-        allowed_fields = {'dob', 'gender', 'blood_group', 'address', 'emergency_contact', 'batch'}
+        allowed_fields = {
+            'reg_no', 'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
+            'secondary_phone', 'batch',
+            'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
+        }
         for field, value in data.items():
             if field in allowed_fields:
                 setattr(profile, field, value)

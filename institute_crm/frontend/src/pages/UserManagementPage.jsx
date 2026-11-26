@@ -61,7 +61,7 @@ export const UserManagementPage = () => {
       <SimplePage
         title="User Access & Roles"
         subtitle="Manage staff accounts and their system access."
-        action="Invite User"
+        action="Add User"
         onAction={() => setShowModal(true)}
         metrics={metrics}
         loading={loading}
@@ -85,12 +85,12 @@ export const UserManagementPage = () => {
           is_active: u.is_active ? 'Active' : 'Inactive',
         }))}
         onDelete={handleDelete}
-        emptyMessage="No users yet. Use “Invite User” to create the first account."
+        emptyMessage="No users yet. Use “Add User” to create the first account."
       />
       <AddRecordModal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="Invite User"
+        title="Add User"
         fields={[
           { name: 'username', label: 'Username', required: true },
           { name: 'email', label: 'Email', type: 'email', required: true },

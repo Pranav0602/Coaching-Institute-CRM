@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { AlertTriangle, BookOpen, CalendarDays, Receipt, Wallet } from 'lucide-react-native';
+import { AlertTriangle, CalendarDays, ClipboardList, NotebookText, Receipt, Wallet } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, ProgressBar, Text, useTheme } from 'react-native-paper';
@@ -119,9 +119,14 @@ const StudentHomeScreen = () => {
           onPress={() => router.push('/(app)/student/fees')}
         />
         <NavButton
-          icon={BookOpen}
-          label="Syllabi"
-          onPress={() => router.push('/(app)/counsellor/syllabi')}
+          icon={NotebookText}
+          label="Notes"
+          onPress={() => router.push('/(app)/student/notes')}
+        />
+        <NavButton
+          icon={ClipboardList}
+          label="Assignments"
+          onPress={() => router.push('/(app)/student/assignments')}
         />
       </View>
 

@@ -90,21 +90,19 @@ const MoreScreen = () => {
           left={(props) => <List.Icon {...props} icon={mode === 'dark' ? Moon : Sun} />}
           right={() => <Switch value={mode === 'dark'} onValueChange={toggle} />}
         />
+        {biometricsAvailable ? <Divider /> : null}
         {biometricsAvailable ? (
-          <>
-            <Divider />
-            <List.Item
-              title="Biometric unlock"
-              description="Face ID or fingerprint on launch"
-              left={(props) => <List.Icon {...props} icon={Fingerprint} />}
-              right={() => (
-                <Switch
-                  value={biometricEnabled}
-                  onValueChange={(next) => void setBiometricEnabled(next)}
-                />
-              )}
-            />
-          </>
+          <List.Item
+            title="Biometric unlock"
+            description="Face ID or fingerprint on launch"
+            left={(props) => <List.Icon {...props} icon={Fingerprint} />}
+            right={() => (
+              <Switch
+                value={biometricEnabled}
+                onValueChange={(next) => void setBiometricEnabled(next)}
+              />
+            )}
+          />
         ) : null}
       </Card>
 

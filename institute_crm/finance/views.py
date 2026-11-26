@@ -16,6 +16,8 @@ from finance.serializers import (
 )
 from finance.services.finance_service import FinanceService
 from accounts.models import User
+from accounts.services.user_service import UserService
+from institute_crm.exceptions import ValidationFailed
 
 
 class FeeStructureViewSet(viewsets.ModelViewSet):
@@ -40,6 +42,22 @@ class InstallmentViewSet(viewsets.ModelViewSet):
             student_id=self.request.query_params.get('student_id'),
             status=self.request.query_params.get('status'),
         )
+
+    @action(detail=False, methods=['get'], url_path='student-summary')
+    def student_summary(self, request):
+        """Computed fee summary for one student: net fee, paid, balance, next due.
+
+        Nothing is stored; every value is derived from the student's fee terms and
+        the live finance records, so it cannot drift from installment/payment data.
+        """
+        student_id = request.query_params.get('student_id')
+        if not student_id:
+            raise ValidationFailed(
+                'A student_id is required.',
+                field_errors={'student_id': ['This query parameter is required.']},
+            )
+        student = UserService.get_user_for_actor(request.user, student_id)
+        return Response(FinanceService.student_fee_summary(student))
 
 
 class PaymentViewSet(viewsets.ModelViewSet):

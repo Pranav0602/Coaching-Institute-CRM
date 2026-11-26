@@ -159,10 +159,10 @@ def seed():
     # Link Student Profile to Batch
     student_prof, _ = StudentProfile.objects.get_or_create(
         user=student_user,
-        defaults={'enrollment_number': 'ENR-PUN-2026-001', 'batch': batch, 'dob': date(2008, 5, 14), 'gender': 'MALE', 'emergency_contact': '+91-9876543210'}
+        defaults={'reg_no': 'ENR-PUN-2026-001', 'batch': batch, 'dob': date(2008, 5, 14), 'gender': 'MALE', 'emergency_contact': '+91-9876543210'}
     )
     StudentParent.objects.get_or_create(student=student_prof, parent=parent_prof)
-    CourseEnrolment.objects.get_or_create(student=student_user, course=course, defaults={'batch': batch, 'status': 'ACTIVE'})
+    CourseEnrolment.objects.get_or_create(student=student_user, course=course, defaults={'batch': batch, 'status': 'ACTIVE', 'softwares': ['React', 'Node.js', 'PostgreSQL']})
 
     # 5. Leads Pipeline
     leads_sample = [

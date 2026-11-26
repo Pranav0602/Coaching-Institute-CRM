@@ -42,7 +42,9 @@ export interface LeadConversion {
   lead_id: string;
   student_user_id: string;
   username: string;
-  enrollment_number: string;
+  reg_no: string;
+  /** @deprecated Legacy alias for `reg_no`; kept for older API responses. */
+  enrollment_number?: string;
   admission_number: string;
   temporary_password: string;
 }

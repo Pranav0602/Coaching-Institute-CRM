@@ -66,7 +66,7 @@ const LeadDetail = () => {
     onSuccess: (result) => {
       Alert.alert(
         'Lead converted',
-        `${result.enrollment_number} created.\n\nUsername: ${result.username}\nTemporary password: ${result.temporary_password}`,
+        `${result.reg_no ?? result.enrollment_number} created.\n\nUsername: ${result.username}\nTemporary password: ${result.temporary_password}`,
         [{ text: 'Done', onPress: () => router.back() }],
       );
     },

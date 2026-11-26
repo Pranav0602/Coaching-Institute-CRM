@@ -83,16 +83,24 @@ CREATE TABLE batches (
 );
 
 -- 7. STUDENT_PROFILE Table
+-- NOTE: this file is a human-readable reference schema. The live Django table
+-- is `users_profiles_studentprofile` (app label + model name, no explicit
+-- db_table); the same mapping applies to the other tables below.
 CREATE TABLE student_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    enrollment_number VARCHAR(50) NOT NULL UNIQUE,
+    reg_no VARCHAR(50) NOT NULL UNIQUE,
     batch_id UUID REFERENCES batches(id) ON DELETE SET NULL,
     dob DATE,
     gender VARCHAR(10) CHECK (gender IN ('MALE', 'FEMALE', 'OTHER')),
     blood_group VARCHAR(10),
     address TEXT,
     emergency_contact VARCHAR(20),
+    secondary_phone VARCHAR(20),
+    agreed_fee NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    discount_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    concession_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    scholarship_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     documents_url JSONB DEFAULT '[]'::jsonb,
     is_deleted BOOLEAN DEFAULT FALSE
 );

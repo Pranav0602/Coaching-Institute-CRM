@@ -67,6 +67,11 @@ class CourseEnrolment(BaseModel):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='enrolments')
     enrolled_at = models.DateField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    #: Software(s) taught/used for this student in this particular course enrolment
+    #: (workbook heading "SOFTWARES"), e.g. ["AutoCAD", "SolidWorks"]. A JSON list
+    #: of strings, not a comma-joined value. Per-enrolment rather than per-student
+    #: because different courses teach different software.
+    softwares = models.JSONField(default=list, blank=True)
 
     class Meta:
         unique_together = ('student', 'course')

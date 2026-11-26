@@ -155,7 +155,7 @@ class StudentQrTests(TestCase):
             username='qr_stud', password='pass12345', role=self.role_student, branch=self.branch,
         )
         self.student = StudentProfile.objects.create(
-            user=self.student_user, enrollment_number='ENR/BR-Q/2026/AB12C', batch=self.batch,
+            user=self.student_user, reg_no='ENR/BR-Q/2026/AB12C', batch=self.batch,
         )
         self.reception = User.objects.create_user(
             username='qr_recep', password='pass12345', role=self.role_reception, branch=self.branch,
@@ -171,7 +171,7 @@ class StudentQrTests(TestCase):
         self.client.force_authenticate(user=self.reception)
         res = self.client.get(f'/api/v1/profiles/students/{self.student.pk}/id-card/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data['enrollment_number'], 'ENR/BR-Q/2026/AB12C')
+        self.assertEqual(res.data['reg_no'], 'ENR/BR-Q/2026/AB12C')
         self.assertEqual(res.data['qr_payload'], self.student.qr_payload)
         self.assertEqual(res.data['batch_name'], 'QR Batch')
         self.assertEqual(res.data['course_title'], 'QR Course')
@@ -184,7 +184,7 @@ class StudentQrTests(TestCase):
         }, format='json')
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.data['matched'])
-        self.assertEqual(res.data['student']['enrollment_number'], 'ENR/BR-Q/2026/AB12C')
+        self.assertEqual(res.data['student']['reg_no'], 'ENR/BR-Q/2026/AB12C')
 
     def test_resolve_qr_rejects_foreign_payloads(self):
         self.client.force_authenticate(user=self.reception)
@@ -220,7 +220,7 @@ class StudentQrTests(TestCase):
             username='qr_stud2', password='pass12345', role=self.role_student, branch=other_branch,
         )
         other = StudentProfile.objects.create(
-            user=other_user, enrollment_number='ENR/BR-Q2/2026/ZZ99Z', batch=other_batch,
+            user=other_user, reg_no='ENR/BR-Q2/2026/ZZ99Z', batch=other_batch,
         )
 
         self.client.force_authenticate(user=self.reception)

@@ -73,9 +73,18 @@ export const formatRelative = (value: string | Date | null | undefined): string 
     ['hour', 3_600_000],
     ['minute', 60_000],
   ];
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  // Hermes (the JS engine on Android) ships no `Intl.RelativeTimeFormat`, so a
+  // bare `new Intl.RelativeTimeFormat(...)` throws "undefined cannot be used as
+  // a constructor" the moment any lead card renders. Build the string by hand.
+  const rtf = (value: number, unit: string): string => {
+    const absValue = Math.abs(value);
+    const past = value < 0;
+    const singular = absValue === 1;
+    const core = past ? `${absValue} ${unit}${singular ? '' : 's'} ago` : `in ${absValue} ${unit}${singular ? '' : 's'}`;
+    return core;
+  };
   for (const [unit, ms] of units) {
-    if (abs >= ms) return rtf.format(Math.round(deltaMs / ms), unit);
+    if (abs >= ms) return rtf(Math.round(deltaMs / ms), unit);
   }
   return 'just now';
 };
