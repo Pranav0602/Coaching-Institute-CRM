@@ -220,7 +220,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
               <Box sx={{ width: 44, height: 44, borderRadius: 2, background: 'linear-gradient(135deg, #6366F1 0%, #10B981 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(99, 102, 241, 0.4)' }}>
                 <School sx={{ color: '#fff', fontSize: 26 }} />
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: '#fff', letterSpacing: 0.5, fontSize: { xs: '1.75rem', md: '2.2rem', lg: '2.5rem' } }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>
                 GRAPHIX TECHNOLOGY <Box component="span" sx={{ background: 'linear-gradient(135deg, #818CF8 0%, #34D399 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CRM</Box>
               </Typography>
             </Stack>
@@ -229,7 +229,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
 
           {/* Center Showcase Highlights */}
           <Box sx={{ my: { xs: 4, md: 'auto' }, zIndex: 2 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#fff', lineHeight: 1.3, mb: 2, fontSize: { xs: '1.35rem', md: '1.7rem', lg: '2rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, color: '#fff', lineHeight: 1.2, mb: 2, fontSize: { xs: '2rem', md: '2.5rem', lg: '3rem' } }}>
               Streamline Operations, Elevate Coaching Growth.
             </Typography>
             <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', mb: 4, maxWidth: 520, fontSize: '1.05rem', lineHeight: 1.6 }}>
