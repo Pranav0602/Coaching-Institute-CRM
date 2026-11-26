@@ -100,6 +100,50 @@ class UserWriteSerializer(UserSerializer):
         return value
 
 
+class StudentCreateSerializer(serializers.Serializer):
+    """Direct student onboarding payload used by the reception desk.
+
+    Covers the user account, the student profile and the optional enrolment in one
+    request. ``username`` and ``password`` may be omitted; the service derives a unique
+    username and a one-time temporary password.
+    """
+
+    # account
+    username = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField()
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField()
+    phone = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(required=False, allow_blank=True, min_length=8, write_only=True)
+
+    # profile
+    dob = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(
+        choices=[("MALE", "Male"), ("FEMALE", "Female"), ("OTHER", "Other")],
+        required=False,
+    )
+    blood_group = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    secondary_phone = serializers.CharField(required=False, allow_blank=True)
+    reg_no = serializers.CharField(required=False, allow_blank=True)
+
+    # guardian
+    guardian_name = serializers.CharField(required=False, allow_blank=True)
+    guardian_phone = serializers.CharField(required=False, allow_blank=True)
+    guardian_relationship = serializers.CharField(required=False, allow_blank=True)
+    emergency_contact = serializers.CharField(required=False, allow_blank=True)
+
+    # enrolment (UUIDs are resolved to model instances by the view)
+    branch = serializers.UUIDField(required=False, allow_null=True)
+    course = serializers.UUIDField(required=False, allow_null=True)
+    batch = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate_email(self, value: str) -> str:
+        if User.objects.filter(email__iexact=value, is_deleted=False).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+
 class AuditLogSerializer(serializers.ModelSerializer):
     actor_name = serializers.SerializerMethodField()
 

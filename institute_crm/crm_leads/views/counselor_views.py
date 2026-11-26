@@ -28,8 +28,15 @@ class LeadViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch_id)
         if course_id:
             qs = qs.filter(course_id=course_id)
-        if self.request.user.role and self.request.user.role.code in [Role.ADMISSION_COUNSELOR]:
+        role_code = getattr(self.request.user.role, "code", None) if self.request.user.role else None
+        if role_code == Role.ADMISSION_COUNSELOR:
+            # Legacy counselor view: own leads plus unassigned enquiries.
             qs = qs.filter(Q(lead_owner=self.request.user) | Q(lead_owner__isnull=True))
+        elif role_code == Role.RECEPTIONIST:
+            # Reception runs the whole pipeline for its own campus. Fails closed when no
+            # branch is assigned rather than exposing every branch's leads.
+            branch_id = getattr(self.request.user, "branch_id", None)
+            qs = qs.filter(branch_id=branch_id) if branch_id else qs.none()
         return qs
 
     @action(detail=False, methods=['get'], url_path='stage-counts')

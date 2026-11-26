@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Box, Typography, Divider, Chip
+  Box, Typography, Divider, Chip, Button
 } from '@mui/material';
 import {
   Dashboard, People, School, Assignment, EventNote,
   AttachMoney, Analytics, MenuBook, Badge,
-  SupportAgent, RecordVoiceOver, Quiz, ReceiptLong, FiberManualRecord, LibraryBooks, AutoStories
+  SupportAgent, RecordVoiceOver, Quiz, ReceiptLong, FiberManualRecord, LibraryBooks, PersonAdd
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../../context/AuthContext';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -19,8 +19,10 @@ export const Sidebar = ({ open, onClose }) => {
   const location = useLocation();
   const [stageCounts, setStageCounts] = useState({});
 
+  const isLeadDesk = activeRole === ROLES.RECEPTIONIST || activeRole === ROLES.ADMISSION_COUNSELOR;
+
   useEffect(() => {
-    if (activeRole !== ROLES.ADMISSION_COUNSELOR) {
+    if (!isLeadDesk) {
       setStageCounts({});
       return;
     }
@@ -32,7 +34,7 @@ export const Sidebar = ({ open, onClose }) => {
       })
       .catch(() => { if (!cancelled) setStageCounts({}); });
     return () => { cancelled = true; };
-  }, [activeRole, location.pathname]);
+  }, [isLeadDesk, location.pathname]);
 
   const getRoleMenuItems = () => {
     switch (activeRole) {
@@ -66,13 +68,17 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
           { text: 'Branch Revenue', icon: <AttachMoney />, path: '/finance' },
         ];
-      case ROLES.ADMISSION_COUNSELOR:
+      case ROLES.ADMISSION_COUNSELOR: // legacy alias - same desk as RECEPTIONIST
+      case ROLES.RECEPTIONIST:
+        // Reception runs the former admission-counselor desk plus direct student
+        // onboarding and the student directory. Pipeline stages are rendered below.
         return [
-          { text: 'Counselling Desk', icon: <Dashboard />, path: '/' },
-          { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
-          { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
+          { text: 'Reception Desk', icon: <Dashboard />, path: '/' },
+          { text: 'Students Directory', icon: <People />, path: '/students' },
           { text: 'Scheduled Follow-ups', icon: <EventNote />, path: '/followups' },
           { text: 'Lead Conversion', icon: <School />, path: '/convert' },
+          { text: 'Course Syllabi', icon: <MenuBook />, path: '/course-syllabi' },
+          { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
         ];
       case ROLES.TEACHER:
         return [
@@ -109,21 +115,12 @@ export const Sidebar = ({ open, onClose }) => {
           { text: 'Financial Accounts', icon: <AttachMoney />, path: '/finance' },
           { text: 'Reports & Analytics', icon: <Analytics />, path: '/reports' },
         ];
-      case ROLES.RECEPTIONIST:
-        // No /visitors, /enquiries or /id-cards routes exist. Lead enquiries live
-        // under Lead Management and student records under Students.
-        return [
-          { text: 'Reception Desk', icon: <Dashboard />, path: '/' },
-          { text: 'New Lead Enquiry', icon: <RecordVoiceOver />, path: '/leads' },
-          { text: 'Students & ID Cards', icon: <Badge />, path: '/students' },
-        ];
       default:
         return [{ text: 'Dashboard', icon: <Dashboard />, path: '/' }];
     }
   };
 
   const menuItems = getRoleMenuItems();
-  const isCounselor = activeRole === ROLES.ADMISSION_COUNSELOR;
 
   const pipelineItems = PIPELINE_STAGES.map((stage) => ({
     stage,
@@ -156,6 +153,20 @@ export const Sidebar = ({ open, onClose }) => {
         />
       </Box>
       <Divider />
+      {isLeadDesk && (
+        <Box sx={{ px: 2, pt: 1.5 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            color="secondary"
+            startIcon={<PersonAdd />}
+            onClick={() => navigate('/students?add=1')}
+            sx={{ borderRadius: 2, fontWeight: 700 }}
+          >
+            Add New Student
+          </Button>
+        </Box>
+      )}
       <List sx={{ px: 1.5, py: 1 }}>
         {menuItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
@@ -187,7 +198,7 @@ export const Sidebar = ({ open, onClose }) => {
           </ListItem>
         ))}
 
-        {isCounselor && (
+        {isLeadDesk && (
           <>
             <ListItem disablePadding sx={{ pl: 1.5, pt: 1, pb: 0.5 }}>
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, fontSize: '0.68rem', letterSpacing: 1.2 }}>

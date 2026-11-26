@@ -35,7 +35,6 @@ import { RagAssistantWidget } from './components/rag/RagAssistantWidget';
 // Dashboards
 import { SuperAdminDashboard } from './pages/dashboards/SuperAdminDashboard';
 import { BranchAdminDashboard } from './pages/dashboards/BranchAdminDashboard';
-import { CounsellingOverview } from './pages/dashboards/CounsellingOverview';
 import { TeacherDashboard } from './pages/dashboards/TeacherDashboard';
 import { StudentDashboard } from './pages/dashboards/StudentDashboard';
 import { ParentDashboard } from './pages/dashboards/ParentDashboard';
@@ -51,7 +50,7 @@ const DashboardRouter = () => {
     case ROLES.BRANCH_ADMIN:
       return <BranchAdminDashboard />;
     case ROLES.ADMISSION_COUNSELOR:
-      return <CounsellingOverview />;
+      return <ReceptionistDashboard />;
     case ROLES.TEACHER:
       return <TeacherDashboard />;
     case ROLES.STUDENT:
@@ -101,7 +100,14 @@ const AppContent = () => {
             <Route path="/users" element={<UserManagementPage />} />
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/students" element={<StudentsPage />} />
+            <Route
+              path="/students"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
+                  <StudentsPage />
+                </RequireRole>
+              }
+            />
             <Route path="/teachers" element={<TeachersPage />} />
             <Route path="/timetable" element={<TimetablePage />} />
             <Route
@@ -147,14 +153,35 @@ const AppContent = () => {
               }
             />
             <Route path="/materials" element={<MaterialsPage />} />
-            <Route path="/pipeline/:stage" element={<PipelineStagePage />} />
-            <Route path="/followups" element={<FollowUpsPage />} />
-            <Route path="/convert" element={<LeadConversionPage />} />
+            <Route
+              path="/pipeline/:stage"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
+                  <PipelineStagePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/followups"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
+                  <FollowUpsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/convert"
+              element={
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
+                  <LeadConversionPage />
+                </RequireRole>
+              }
+            />
             <Route path="/profile" element={<ProfilePage />} />
             <Route
               path="/knowledge-base"
               element={
-                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.ADMISSION_COUNSELOR]}>
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
                   <KnowledgeBasePage />
                 </RequireRole>
               }
@@ -162,7 +189,7 @@ const AppContent = () => {
             <Route
               path="/course-syllabi"
               element={
-                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.ADMISSION_COUNSELOR]}>
+                <RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.BRANCH_ADMIN, ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR]}>
                   <CourseSyllabiPage />
                 </RequireRole>
               }

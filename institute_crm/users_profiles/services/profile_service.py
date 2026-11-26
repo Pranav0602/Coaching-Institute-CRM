@@ -33,7 +33,9 @@ class ProfileService:
             qs = qs.filter(batch_id=batch_id)
         if course_id:
             qs = qs.filter(
-                Q(batch__course_id=course_id) | Q(user__enrolments__course_id=course_id)
+                Q(course_id=course_id)
+                | Q(batch__course_id=course_id)
+                | Q(user__enrolments__course_id=course_id)
             ).distinct()
         if branch_id:
             qs = qs.filter(user__branch_id=branch_id)
@@ -48,11 +50,16 @@ class ProfileService:
                 | Q(reg_no__icontains=search)
             )
 
-        # Scoping based on actor role
+        # Scoping based on actor role. Branch-scoped staff fail closed when they have
+        # no branch assigned rather than silently seeing every campus.
         if actor and actor.is_authenticated and actor.role:
             role_code = actor.role.code
-            if role_code in [Role.BRANCH_ADMIN, Role.RECEPTIONIST, Role.ACCOUNTANT] and actor.branch:
-                qs = qs.filter(user__branch=actor.branch)
+            branch_roles = [
+                Role.BRANCH_ADMIN, Role.RECEPTIONIST, Role.ADMISSION_COUNSELOR,
+                Role.ACCOUNTANT,
+            ]
+            if role_code in branch_roles:
+                qs = qs.filter(user__branch_id=actor.branch_id) if actor.branch_id else qs.none()
             elif role_code == Role.TEACHER:
                 if not (batch_id or course_id or branch_id):
                     qs = qs.filter(batch__timetables__teacher=actor).distinct()
@@ -116,7 +123,8 @@ class ProfileService:
     ) -> StudentProfile:
         allowed_fields = {
             'reg_no', 'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
-            'secondary_phone', 'batch',
+            'secondary_phone', 'course', 'batch',
+            'guardian_name', 'guardian_phone', 'guardian_relationship',
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
         }
         for field, value in data.items():

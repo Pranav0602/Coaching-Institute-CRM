@@ -21,7 +21,10 @@ from institute_crm.scoping import assert_role, is_global
 #: Roles allowed to turn a scanned ID into a student record. Students and parents are
 #: excluded on purpose: an enrollment number is a lookup key, and letting any
 #: authenticated account resolve arbitrary ones turns it into an enumeration oracle.
-QR_RESOLVER_ROLES = (Role.SUPER_ADMIN, Role.BRANCH_ADMIN, Role.RECEPTIONIST, Role.TEACHER)
+QR_RESOLVER_ROLES = (
+    Role.SUPER_ADMIN, Role.BRANCH_ADMIN, Role.RECEPTIONIST,
+    Role.ADMISSION_COUNSELOR, Role.TEACHER,
+)
 
 
 class StudentProfileViewSet(viewsets.ModelViewSet):

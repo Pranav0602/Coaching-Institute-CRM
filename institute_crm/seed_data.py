@@ -25,12 +25,12 @@ def seed():
     roles_data = [
         (Role.SUPER_ADMIN, 'Super Admin', 'Full system access across all branches'),
         (Role.BRANCH_ADMIN, 'Branch Admin', 'Manages branch operational activities'),
-        (Role.ADMISSION_COUNSELOR, 'Admission Counselor', 'Handles leads, enquiries, counselling and admissions'),
+        (Role.ADMISSION_COUNSELOR, 'Admission Counselor (Legacy)', 'Deprecated alias for RECEPTIONIST; kept for backward compatibility'),
         (Role.TEACHER, 'Teacher', 'Manages timetable, lectures, attendance, assignments and marks'),
         (Role.STUDENT, 'Student', 'Views timetable, submits assignments, checks fee receipts and marks'),
         (Role.PARENT, 'Parent', 'Monitors child attendance, test results, fee dues and remarks'),
         (Role.ACCOUNTANT, 'Accountant', 'Manages fee collection, discounts, installments and financial reports'),
-        (Role.RECEPTIONIST, 'Receptionist', 'Registers walk-in visitors, enquiries and schedules sessions'),
+        (Role.RECEPTIONIST, 'Receptionist', 'Front desk: lead pipeline, follow-ups, direct student onboarding and profiles'),
     ]
 
     roles = {}
@@ -78,10 +78,10 @@ def seed():
     branch_admin.set_password('Admin@123')
     branch_admin.save()
 
-    # Counselor
+    # Reception desk (formerly Admission Counselor) - leads, follow-ups and admissions
     counselor, _ = User.objects.get_or_create(
         username='counselor',
-        defaults={'email': 'counselor@coachinginstitute.com', 'first_name': 'Priya', 'last_name': 'Verma', 'role': roles[Role.ADMISSION_COUNSELOR], 'branch': b_pune}
+        defaults={'email': 'counselor@coachinginstitute.com', 'first_name': 'Priya', 'last_name': 'Verma', 'role': roles[Role.RECEPTIONIST], 'branch': b_pune}
     )
     counselor.set_password('Admin@123')
     counselor.save()

@@ -30,6 +30,7 @@ from accounts.serializers import (
     ProfilePhotoSerializer,
     ResetPasswordSerializer,
     RoleSerializer,
+    StudentCreateSerializer,
     UserProfileUpdateSerializer,
     UserSerializer,
     UserWriteSerializer,
@@ -334,6 +335,47 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="role-distribution")
     def role_distribution(self, request):
         return Response(UserService.role_distribution(request.user))
+
+    @action(detail=False, methods=["post"], url_path="create-student")
+    def create_student(self, request):
+        """Direct onboarding used by the reception desk's "Add Student" flow.
+
+        Accepts account + profile + optional enrolment in one request. IDs are resolved
+        here so the service layer only sees model instances.
+        """
+        from academics.models import Batch, Course
+        from users_profiles.serializers import StudentProfileSerializer
+
+        serializer = StudentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = dict(serializer.validated_data)
+
+        branch_id = payload.pop("branch", None)
+        course_id = payload.pop("course", None)
+        batch_id = payload.pop("batch", None)
+
+        if branch_id:
+            payload["branch"] = Branch.objects.filter(pk=branch_id, is_deleted=False).first()
+        if course_id:
+            payload["course"] = Course.objects.filter(pk=course_id, is_deleted=False).first()
+        if batch_id:
+            payload["batch"] = Batch.objects.filter(pk=batch_id, is_deleted=False).first()
+
+        result = UserService.create_student(
+            actor=request.user,
+            data=payload,
+            ip_address=client_ip(request),
+        )
+        return Response(
+            {
+                "user": UserSerializer(result["user"], context={"request": request}).data,
+                "student_profile": StudentProfileSerializer(
+                    result["profile"], context={"request": request}
+                ).data,
+                "temporary_password": result.get("temporary_password"),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class BranchViewSet(viewsets.ModelViewSet):

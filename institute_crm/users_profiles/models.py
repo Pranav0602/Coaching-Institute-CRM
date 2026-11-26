@@ -22,8 +22,22 @@ class StudentProfile(BaseModel):
     #: Second mobile number, stored as its own string - never a numeric field and
     #: never a comma-joined value inside `user.phone`. Blank when there is only one.
     secondary_phone = models.CharField(max_length=20, blank=True, null=True)
+    #: Course the student enrolled in. Kept alongside the enrolment so reception can
+    #: register a student before a batch is assigned; `CourseEnrolment` remains the
+    #: authoritative record once a cohort exists.
+    course = models.ForeignKey(
+        'academics.Course', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='direct_students',
+    )
     batch = models.ForeignKey('academics.Batch', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     documents_url = models.JSONField(default=list, blank=True) # AWS S3 stored document URLs
+
+    # ------------------------------------------------- guardian / emergency
+    #: Guardian details captured at the reception desk. `emergency_contact` is retained
+    #: for backwards compatibility and is treated as the guardian phone when set.
+    guardian_name = models.CharField(max_length=150, blank=True, null=True)
+    guardian_phone = models.CharField(max_length=20, blank=True, null=True)
+    guardian_relationship = models.CharField(max_length=50, blank=True, null=True)
 
     # ------------------------------------------------------------- fee terms
     # Student-specific fee terms, in Indian Rupees (INR). These are *terms*, not

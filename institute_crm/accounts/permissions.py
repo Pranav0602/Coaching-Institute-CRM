@@ -1,6 +1,11 @@
 from rest_framework.permissions import BasePermission
 from accounts.models import Role
 
+#: Roles that run the front desk and the lead pipeline. ``ADMISSION_COUNSELOR`` is kept
+#: as a legacy alias so tokens issued before the role transition keep working.
+LEAD_DESK_ROLES = (Role.RECEPTIONIST, Role.ADMISSION_COUNSELOR)
+
+
 class HasRolePermission(BasePermission):
     """
     Custom permission to grant access based on allowed roles.
@@ -34,7 +39,8 @@ class IsBranchAdmin(BasePermission):
 class IsAdminOrCounselorReadOnly(BasePermission):
     """
     Full CRUD for SUPER_ADMIN / BRANCH_ADMIN (and superusers).
-    Read-only (GET/HEAD/OPTIONS) for ADMISSION_COUNSELOR on published docs.
+    Read-only (GET/HEAD/OPTIONS) for RECEPTIONIST (and the legacy ADMISSION_COUNSELOR)
+    on published docs.
     All other roles / unauthenticated requests are rejected.
     """
 
@@ -47,15 +53,26 @@ class IsAdminOrCounselorReadOnly(BasePermission):
         role_code = getattr(user.role, "code", None) if getattr(user, "role", None) else None
         if role_code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN]:
             return True
-        if role_code == Role.ADMISSION_COUNSELOR:
+        if role_code in LEAD_DESK_ROLES:
             return request.method in ("GET", "HEAD", "OPTIONS")
         return False
 
 
 class IsAdmissionCounselor(BasePermission):
+    """Legacy name retained for compatibility. Now also admits RECEPTIONIST."""
+
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role and (
-            request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN, Role.ADMISSION_COUNSELOR]
+            request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN, *LEAD_DESK_ROLES]
+        ))
+
+
+class IsReceptionistOrAdmin(BasePermission):
+    """Reception desk, plus the administrative roles that always outrank it."""
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.role and (
+            request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN, *LEAD_DESK_ROLES]
         ))
 
 class IsTeacher(BasePermission):
@@ -85,5 +102,5 @@ class IsAccountant(BasePermission):
 class IsReceptionist(BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role and (
-            request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN, Role.RECEPTIONIST]
+            request.user.role.code in [Role.SUPER_ADMIN, Role.BRANCH_ADMIN, *LEAD_DESK_ROLES]
         ))

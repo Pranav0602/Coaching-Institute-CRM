@@ -20,7 +20,10 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     phone = serializers.SerializerMethodField()
     mobile = serializers.SerializerMethodField()  # MOB.NO alias for `phone`
     course_title = serializers.SerializerMethodField()
+    course_code = serializers.SerializerMethodField()
+    batch_code = serializers.CharField(source='batch.code', read_only=True)
     softwares = serializers.SerializerMethodField()
+    guardian = serializers.SerializerMethodField()
 
     # ---- student-specific fee terms (INR) ---------------------------------
     # Computed, read-only summary; underlying records stay in `finance`.
@@ -36,7 +39,9 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_detail', 'reg_no', 'enrollment_number', 'dob',
             'gender', 'blood_group', 'address', 'emergency_contact',
-            'secondary_phone', 'batch', 'batch_name', 'documents_url', 'qr_payload',
+            'secondary_phone', 'course', 'course_code', 'batch', 'batch_name',
+            'batch_code', 'documents_url', 'qr_payload',
+            'guardian_name', 'guardian_phone', 'guardian_relationship', 'guardian',
             'branch_name', 'branch_code', 'student_name', 'phone', 'mobile',
             'course_title', 'softwares',
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
@@ -88,13 +93,27 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         except Exception:
             return []
 
-    def get_course_title(self, obj):
+    def _course(self, obj):
         enrolments = self._enrolments(obj)
         if enrolments:
-            return getattr(enrolments[0].course, 'title', None)
+            return getattr(enrolments[0], 'course', None)
         if obj.batch is not None and getattr(obj.batch, 'course', None) is not None:
-            return obj.batch.course.title
-        return None
+            return obj.batch.course
+        return getattr(obj, 'course', None)
+
+    def get_course_title(self, obj):
+        return getattr(self._course(obj), 'title', None)
+
+    def get_course_code(self, obj):
+        return getattr(self._course(obj), 'code', None)
+
+    def get_guardian(self, obj):
+        """Single guardian block for the profile viewer, with legacy fallbacks."""
+        return {
+            'name': obj.guardian_name or None,
+            'phone': obj.guardian_phone or obj.emergency_contact or None,
+            'relationship': obj.guardian_relationship or None,
+        }
 
     def get_softwares(self, obj):
         softwares: list = []

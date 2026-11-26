@@ -102,7 +102,7 @@ export const Navbar = ({ onToggleSidebar }) => {
   const roleLabels = {
     [ROLES.SUPER_ADMIN]: 'Super Admin',
     [ROLES.BRANCH_ADMIN]: 'Branch Admin',
-    [ROLES.ADMISSION_COUNSELOR]: 'Admission Counselor',
+    [ROLES.ADMISSION_COUNSELOR]: 'Reception (Legacy)',
     [ROLES.TEACHER]: 'Teacher',
     [ROLES.STUDENT]: 'Student',
     [ROLES.PARENT]: 'Parent',
