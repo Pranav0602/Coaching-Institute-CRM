@@ -126,7 +126,7 @@ export const Navbar = ({ onToggleSidebar }) => {
               GT
             </Box>
             <Typography variant="h6" sx={{ fontWeight: 800, background: 'linear-gradient(135deg, #6366F1 0%, #34D399 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: { xs: 'none', sm: 'block' } }}>
-              GRAPHICS TECHNOLOGY CRM
+              GRAPHIX TECHNOLOGY CRM
             </Typography>
           </Box>
           <Chip label={user?.branch_name || "Main Branch"} color="primary" variant="outlined" size="small" sx={{ borderRadius: 2, ml: 1 }} />

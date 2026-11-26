@@ -221,7 +221,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
                 <School sx={{ color: '#fff', fontSize: 26 }} />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>
-                GRAPHICS TECH <Box component="span" sx={{ background: 'linear-gradient(135deg, #818CF8 0%, #34D399 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CRM</Box>
+                GRAPHIX TECHNOLOGY <Box component="span" sx={{ background: 'linear-gradient(135deg, #818CF8 0%, #34D399 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CRM</Box>
               </Typography>
             </Stack>
             <Chip label="Coaching Enterprise Suite v2.0" size="small" sx={{ bgcolor: 'rgba(129, 140, 248, 0.15)', color: '#A5B4FC', border: '1px solid rgba(129, 140, 248, 0.3)', fontWeight: 600 }} />
@@ -309,7 +309,7 @@ export const Login = ({ onOpenEnquiry, onBackToLanding }) => {
           {/* Bottom Footer Info */}
           <Box sx={{ zIndex: 2, display: { xs: 'none', md: 'block' } }}>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-              © {new Date().getFullYear()} Graphics Technology Management. All rights reserved. Safe & Encrypted Enterprise Auth.
+              © {new Date().getFullYear()} Graphix Technology Management. All rights reserved. Safe & Encrypted Enterprise Auth.
             </Typography>
           </Box>
         </Grid>

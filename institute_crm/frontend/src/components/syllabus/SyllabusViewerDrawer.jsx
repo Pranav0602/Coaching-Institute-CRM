@@ -41,7 +41,7 @@ export const SyllabusViewerDrawer = ({ open, onClose, course, syllabus, loading 
       syllabus?.content
         ? `Highlights: ${syllabus.content.slice(0, 400).replace(/[#*`>-]/g, '').trim()}...`
         : (course.description || ''),
-      `— Graphix Techno Services, Counselling Desk`,
+      `— Graphix Technology, Counselling Desk`,
     ].filter(Boolean).join('\n');
     try {
       await navigator.clipboard.writeText(msg);

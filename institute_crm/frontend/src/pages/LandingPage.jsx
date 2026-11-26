@@ -12,8 +12,8 @@ import {
 } from '@mui/icons-material';
 
 /**
- * Optimized Graphix-style Landing Page adapted to Institute CRM theme
- * - Uses hotlinked Graphix assets (with lazy loading) + fallbacks
+ * Optimized Graphix Technology Landing Page adapted to Institute CRM theme
+ * - Uses hotlinked brand assets (with lazy loading) + fallbacks
  * - Dark theme aware via MUI tokens
  * - Section anchors for SEO / scroll navigation
  * - All data mirrored from https://graphixtechnoservices.com/
@@ -138,9 +138,9 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
         <Container maxWidth="xl">
           <Toolbar disableGutters sx={{ gap: 2, py: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0, cursor: 'pointer' }} onClick={() => scrollTo('hero')}>
-              <Box component="img" src={IMG.logo} alt="Graphix Technologies" loading="lazy" sx={{ width: 44, height: 44, borderRadius: 2, objectFit: 'cover', border: '1px solid', borderColor: 'divider' }} />
+              <Box component="img" src={IMG.logo} alt="Graphix Technology" loading="lazy" sx={{ width: 44, height: 44, borderRadius: 2, objectFit: 'cover', border: '1px solid', borderColor: 'divider' }} />
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1, letterSpacing: 0.3 }}>Graphix Technologies</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1, letterSpacing: 0.3 }}>Graphix Technology</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.5 }}>Central Govt. Certified • CRM-Powered</Typography>
               </Box>
             </Box>
@@ -300,7 +300,7 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
             ))}
           </Grid>
           <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary">Images are actual placement drives & student achievement moments from Graphix campuses (imported for demo, © Graphix Technologies).</Typography>
+            <Typography variant="caption" color="text.secondary">Images are actual placement drives & student achievement moments from Graphix Technology campuses (imported for demo, © Graphix Technology).</Typography>
           </Box>
         </Container>
       </Box>
@@ -467,7 +467,7 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
             <Grid item xs={12} md={7}>
               <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 800 }}>Industry Insights</Typography>
               <Typography variant="h4" fontWeight={900}>What Industry Require From CAD Engineer?</Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>Article by – Kishor More, State Coordinator & MD Graphix Technologies</Typography>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>Article by – Kishor More, State Coordinator & MD Graphix Technology</Typography>
               <Grid container spacing={1.5} sx={{ mt: 1.5 }}>
                 {INDUSTRY_NEEDS.map(n => (
                   <Grid key={n.title} item xs={12} sm={6}>
@@ -490,7 +490,7 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
           <Grid container spacing={2.5}>
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid', borderColor: 'divider', height: '100%' }}>
-                <CardMedia component="img" image={IMG.events} alt="Events - Graphix Technologies" loading="lazy" sx={{ height: 220, objectFit: 'cover' }} />
+                <CardMedia component="img" image={IMG.events} alt="Events - Graphix Technology" loading="lazy" sx={{ height: 220, objectFit: 'cover' }} />
                 <CardContent>
                   <Typography variant="h6" fontWeight={800}>Events & Seminars</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>We successfully conduct Career Guidance Seminars in various colleges for educating & creating awareness regarding future goals. Live sessions synced via CRM events calendar.</Typography>
@@ -508,7 +508,7 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
                   <Paper elevation={0} sx={{ p: 1.6, borderRadius: 2, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}><Typography variant="body2" fontWeight={700}>✓ Our Expertise With Industrial Knowledge.</Typography></Paper>
                   <Paper elevation={0} sx={{ p: 1.6, borderRadius: 2, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}><Typography variant="body2" fontWeight={700}>✓ All Industrial Faculties With Minimum 1.5 Yrs Experience.</Typography></Paper>
                 </Stack>
-                <Box component="img" src={IMG.whatsappFloat} alt="Team - Graphix Technologies" loading="lazy" sx={{ width: '100%', mt: 2, borderRadius: 3, height: 'auto', maxHeight: 'none', objectFit: 'contain', display: 'block', border: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }} />
+                <Box component="img" src={IMG.whatsappFloat} alt="Team - Graphix Technology" loading="lazy" sx={{ width: '100%', mt: 2, borderRadius: 3, height: 'auto', maxHeight: 'none', objectFit: 'contain', display: 'block', border: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }} />
               </Card>
             </Grid>
           </Grid>
@@ -524,9 +524,9 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
           </Box>
           <Grid container spacing={2.5}>
             {[
-              { name: 'Akash Nandure', role: 'CAD Engineer', quote: 'I always wanted to learn specific and need skills to become successful, but knew only a degree won’t help. Joining Graphix Technologies was the best decision – their training gave me required knowledge and skills.', img: IMG.testimonials[0] },
-              { name: 'Anurag Devare', role: 'CAD Engineer', quote: 'Graphix Technologies is a great place for young students who want a job without spending a lot. I learnt a lot and they helped me get a stable job in a company of my choice.', img: IMG.testimonials[1] },
-              { name: 'Rushikesh Tidke', role: 'CAD Engineer', quote: 'Completed course from Graphix and they provide excellent & quality training. Got placed in reputed company with complete placement support. Thank you Graphix Technologies.', img: IMG.testimonials[2] },
+              { name: 'Akash Nandure', role: 'CAD Engineer', quote: 'I always wanted to learn specific and need skills to become successful, but knew only a degree won’t help. Joining Graphix Technology was the best decision – their training gave me required knowledge and skills.', img: IMG.testimonials[0] },
+              { name: 'Anurag Devare', role: 'CAD Engineer', quote: 'Graphix Technology is a great place for young students who want a job without spending a lot. I learnt a lot and they helped me get a stable job in a company of my choice.', img: IMG.testimonials[1] },
+                { name: 'Rushikesh Tidke', role: 'CAD Engineer', quote: 'Completed course from Graphix Technology and they provide excellent & quality training. Got placed in reputed company with complete placement support. Thank you Graphix Technology.', img: IMG.testimonials[2] },
             ].map(t => (
               <Grid key={t.name} item xs={12} md={4}>
                 <Card sx={{ height: '100%', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', p: 2.5, color: '#fff' }}>
@@ -589,8 +589,8 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
           <Grid container spacing={3}>
             <Grid item xs={12} md={4}>
               <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1.5 }}>
-                <Box component="img" src={IMG.logo} alt="Graphix" loading="lazy" sx={{ width: 40, height: 40, borderRadius: 2, objectFit: 'cover' }} />
-                <Typography variant="h6" fontWeight={800} sx={{ color: '#fff' }}>Graphix Technologies</Typography>
+                <Box component="img" src={IMG.logo} alt="Graphix Technology" loading="lazy" sx={{ width: 40, height: 40, borderRadius: 2, objectFit: 'cover' }} />
+                <Typography variant="h6" fontWeight={800} sx={{ color: '#fff' }}>Graphix Technology</Typography>
               </Stack>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1.5 }}>Central Government CAD/CAM/CAE Training Institute • Pune’s trusted CAD & Job-Oriented training with 100% placement assistance. CRM & ERP powered admissions, batch and fee management.</Typography>
               <Stack direction="row" spacing={1} alignItems="center"><Email sx={{ fontSize: 16, color: '#A5B4FC' }} /><MuiLink href="mailto:info@graphixtech.org" underline="hover" sx={{ color: '#A5B4FC' }}>info@graphixtech.org</MuiLink></Stack>
@@ -623,13 +623,13 @@ export const LandingPage = ({ onOpenLogin, onOpenEnquiry }) => {
                 <IconButton href="https://www.linkedin.com/company/infinite-graphix-technologies-pvt-ltd/" target="_blank" sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: '#fff', '&:hover': { bgcolor: 'primary.main' } }}><LinkedIn fontSize="small" /></IconButton>
               </Stack>
               <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>This landing is an <strong style={{ color: '#A5B4FC' }}>optimized clone</strong> of graphixtechnoservices.com adapted to the CRM theme. Assets hotlinked for demo; all original data © Graphix Technologies. Protected by CRM auth & RAG assistant.</Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>This landing is an <strong style={{ color: '#A5B4FC' }}>optimized clone</strong> of graphixtechnoservices.com adapted to the CRM theme. Assets hotlinked for demo; all original data © Graphix Technology. Protected by CRM auth & RAG assistant.</Typography>
               </Paper>
             </Grid>
           </Grid>
           <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
           <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" spacing={1} sx={{ pb: 2 }}>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Copyright © {new Date().getFullYear()} Graphix Technologies • Built on Institute CRM (React + MUI + PostgreSQL)</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Copyright © {new Date().getFullYear()} Graphix Technology • Built on Institute CRM (React + MUI + PostgreSQL)</Typography>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Chip icon={<SmartToy sx={{ fontSize: 16 }} />} label="RAG AI Assistant" size="small" onClick={() => handleOpenAi()} sx={{ bgcolor: 'rgba(16,185,129,0.15)', color: '#34D399', fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(16,185,129,0.3)' }} />
               <Button size="small" href="tel:09970720023" variant="contained" sx={{ borderRadius: 10, textTransform: 'none', fontWeight: 700, bgcolor: '#10B981' }} startIcon={<Phone sx={{ fontSize: 16 }} />}>Call Now</Button>

@@ -38,7 +38,7 @@ export const RagAssistantWidget = ({ onOpenEnquiry }) => {
   const isGuestLead = !isAuthenticated || !user;
 
   const defaultGreeting = isGuestLead
-    ? "👋 Welcome to Graphics Tech Institute! I'm your AI Admissions & Knowledge Assistant. Looking to explore our courses, fee structure, batch schedules, or admission procedures? Ask me anything!"
+    ? "👋 Welcome to Graphix Technology Institute! I'm your AI Admissions & Knowledge Assistant. Looking to explore our courses, fee structure, batch schedules, or admission procedures? Ask me anything!"
     : `Hello ${user?.first_name || 'there'}! I'm your Coaching Institute AI Knowledge Assistant. How can I help you today with courses, schedules, or policies?`;
 
   const [messages, setMessages] = useState([
