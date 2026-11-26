@@ -13,7 +13,7 @@ class StudentProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     #: Registration number (workbook heading "REG NO"). Renamed from `enrollment_number`;
     #: the old name is kept as a compatibility alias (see `enrollment_number` below).
-    reg_no = models.CharField(max_length=50, unique=True, db_index=True)
+    reg_no = models.CharField('REG NO', max_length=50, unique=True, db_index=True)
     dob = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='MALE')
     blood_group = models.CharField(max_length=10, blank=True, null=True)
@@ -29,6 +29,11 @@ class StudentProfile(BaseModel):
         'academics.Course', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='direct_students',
     )
+    # Source roster labels retained when a spreadsheet does not provide enough
+    # information to link the student to a catalog course or campus safely.
+    academic_branch = models.CharField(max_length=20, blank=True, null=True)
+    source_course_label = models.CharField(max_length=150, blank=True, null=True)
+    source_softwares = models.TextField(blank=True, null=True)
     batch = models.ForeignKey('academics.Batch', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     documents_url = models.JSONField(default=list, blank=True) # AWS S3 stored document URLs
 
@@ -50,6 +55,8 @@ class StudentProfile(BaseModel):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     concession_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     scholarship_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    #: Context or justification for custom fee terms, concessions, or installment conditions.
+    fee_notes = models.TextField(blank=True, null=True)
 
     def __init__(self, *args, **kwargs):
         # Backwards compatibility: accept the old `enrollment_number` kwarg.

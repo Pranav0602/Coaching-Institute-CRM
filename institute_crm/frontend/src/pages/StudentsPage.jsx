@@ -10,7 +10,7 @@ import { PageHeader, MetricCards } from './PageLayout';
 import { AddStudentModal } from '../components/students/AddStudentModal';
 import { StudentProfileDialog } from '../components/students/StudentProfileDialog';
 import api, { unwrapList } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -31,6 +31,7 @@ const withinDays = (value, days) => {
 export const StudentsPage = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isReceptionDesk = [ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR].includes(user?.role_code);
 
   const [students, setStudents] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -77,6 +78,12 @@ export const StudentsPage = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
+    if (isReceptionDesk && user?.branch) {
+      setFilters((prev) => (prev.branch === user.branch ? prev : { ...prev, branch: user.branch }));
+    }
+  }, [isReceptionDesk, user?.branch]);
+
+  useEffect(() => {
     if (searchParams.get('add') === '1') {
       setShowAdd(true);
       const next = new URLSearchParams(searchParams);
@@ -105,6 +112,9 @@ export const StudentsPage = () => {
         branch_id: student.branch || profile.branch || '',
         branch_name: branchName || '—',
         contact: [student.phone, student.email].filter(Boolean).join(' · '),
+        mobile: student.phone || '',
+        secondary_phone: profile.secondary_phone || '',
+        softwares: Array.isArray(profile.softwares) ? profile.softwares : [],
         admission_date: student.date_joined,
         status: student.is_active === false ? 'INACTIVE' : 'ACTIVE',
       };
@@ -121,7 +131,8 @@ export const StudentsPage = () => {
       if (term) {
         const haystack = [
           row.full_name, row.reg_no, row.user?.username, row.user?.email,
-          row.user?.phone, row.course_title, row.batch_name,
+          row.user?.phone, row.secondary_phone, row.course_title, row.batch_name,
+          ...(row.softwares || []),
         ].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(term)) return false;
       }
@@ -153,7 +164,13 @@ export const StudentsPage = () => {
     fetchData();
   };
 
-  const clearFilters = () => setFilters({ search: '', branch: '', course: '', batch: '', status: '' });
+  const clearFilters = () => setFilters({
+    search: '',
+    branch: isReceptionDesk ? (user?.branch || '') : '',
+    course: '',
+    batch: '',
+    status: '',
+  });
 
   return (
     <Box>
@@ -192,8 +209,17 @@ export const StudentsPage = () => {
             />
           </Grid>
           <Grid item xs={6} sm={3} md={2}>
-            <TextField select fullWidth size="small" label="Branch" value={filters.branch} onChange={(e) => setFilters({ ...filters, branch: e.target.value })}>
-              <MenuItem value="">All</MenuItem>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Branch"
+              value={filters.branch}
+              onChange={(e) => setFilters({ ...filters, branch: e.target.value })}
+              disabled={isReceptionDesk}
+              helperText={isReceptionDesk ? 'Assigned branch' : undefined}
+            >
+              {!isReceptionDesk && <MenuItem value="">All</MenuItem>}
               {branches.map((b) => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
             </TextField>
           </Grid>
@@ -236,10 +262,12 @@ export const StudentsPage = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Roll / ID</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Course / Batch</TableCell>
-                  <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Contact Info</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>BRANCH</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>REG NO</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>STUDENT NAME</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>MOB.NO</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>COURSE</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>SOFTWARES</TableCell>
                   <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>Admission Date</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>View</TableCell>
@@ -248,7 +276,7 @@ export const StudentsPage = () => {
               <TableBody>
                 {filteredRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography color="text.secondary" sx={{ py: 4 }}>
                         {rows.length === 0 ? 'No students yet. Use “Add New Student” to enrol the first one.' : 'No students match the current filters.'}
                       </Typography>
@@ -262,6 +290,10 @@ export const StudentsPage = () => {
                     sx={{ cursor: 'pointer' }}
                   >
                     <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.branch_name}</Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{row.reg_no}</TableCell>
+                    <TableCell>
                       <Stack direction="row" spacing={1.5} alignItems="center">
                         <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 14 }}>
                           {(row.full_name || 'S').charAt(0)}
@@ -272,14 +304,26 @@ export const StudentsPage = () => {
                         </Box>
                       </Stack>
                     </TableCell>
-                    <TableCell>{row.reg_no}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{row.mobile || '—'}</Typography>
+                      {row.secondary_phone && (
+                        <Typography variant="caption" color="text.secondary" display="block">Alt: {row.secondary_phone}</Typography>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Typography variant="body2">{row.course_title}</Typography>
                       <Typography variant="caption" color="text.secondary">{row.batch_name}</Typography>
                     </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                      <Typography variant="body2">{row.user?.phone || '—'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{row.user?.email || ''}</Typography>
+                    <TableCell>
+                      {row.softwares && row.softwares.length > 0 ? (
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ maxWidth: 220 }}>
+                          {row.softwares.map((sw, idx) => (
+                            <Chip key={idx} label={sw} size="small" sx={{ fontSize: '0.72rem', height: 20 }} />
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">—</Typography>
+                      )}
                     </TableCell>
                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{formatDate(row.admission_date)}</TableCell>
                     <TableCell>

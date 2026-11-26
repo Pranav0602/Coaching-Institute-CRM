@@ -39,12 +39,14 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_detail', 'reg_no', 'enrollment_number', 'dob',
             'gender', 'blood_group', 'address', 'emergency_contact',
-            'secondary_phone', 'course', 'course_code', 'batch', 'batch_name',
+            'secondary_phone', 'course', 'course_code', 'academic_branch',
+            'source_course_label', 'source_softwares', 'batch', 'batch_name',
             'batch_code', 'documents_url', 'qr_payload',
             'guardian_name', 'guardian_phone', 'guardian_relationship', 'guardian',
             'branch_name', 'branch_code', 'student_name', 'phone', 'mobile',
             'course_title', 'softwares',
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
+            'fee_notes',
             'net_fee', 'total_paid', 'outstanding_balance', 'next_due_date',
             'fee_status', 'fee_summary', 'created_at'
         ]
@@ -102,7 +104,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         return getattr(obj, 'course', None)
 
     def get_course_title(self, obj):
-        return getattr(self._course(obj), 'title', None)
+        return getattr(self._course(obj), 'title', None) or obj.source_course_label
 
     def get_course_code(self, obj):
         return getattr(self._course(obj), 'code', None)
@@ -121,6 +123,15 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             for software in (enrolment.softwares or []):
                 if software not in softwares:
                     softwares.append(software)
+        if not softwares and obj.source_softwares:
+            # Preserve a useful roster list while exposing the untouched source
+            # cell separately for audit and exact round-tripping.
+            import re
+            softwares = [
+                value.strip()
+                for value in re.split(r'\s*[+;]\s*', obj.source_softwares)
+                if value.strip()
+            ]
         return softwares
 
     # -- fee helpers ---------------------------------------------------------

@@ -82,6 +82,20 @@ CREATE TABLE batches (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
+-- 6b. COURSE_ENROLMENT Table (Student to Course / Batch roster link)
+-- Live Django table: `academics_courseenrolment`
+CREATE TABLE course_enrolments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
+    enrolled_at DATE DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED', 'DROPPED')),
+    softwares JSONB DEFAULT '[]'::jsonb,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT uk_student_course UNIQUE (student_id, course_id)
+);
+
 -- 7. STUDENT_PROFILE Table
 -- NOTE: this file is a human-readable reference schema. The live Django table
 -- is `users_profiles_studentprofile` (app label + model name, no explicit
@@ -90,6 +104,7 @@ CREATE TABLE student_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     reg_no VARCHAR(50) NOT NULL UNIQUE,
+    course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
     batch_id UUID REFERENCES batches(id) ON DELETE SET NULL,
     dob DATE,
     gender VARCHAR(10) CHECK (gender IN ('MALE', 'FEMALE', 'OTHER')),
@@ -97,10 +112,14 @@ CREATE TABLE student_profiles (
     address TEXT,
     emergency_contact VARCHAR(20),
     secondary_phone VARCHAR(20),
+    guardian_name VARCHAR(150),
+    guardian_phone VARCHAR(20),
+    guardian_relationship VARCHAR(50),
     agreed_fee NUMERIC(10, 2) NOT NULL DEFAULT 0,
     discount_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     concession_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     scholarship_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    fee_notes TEXT,
     documents_url JSONB DEFAULT '[]'::jsonb,
     is_deleted BOOLEAN DEFAULT FALSE
 );

@@ -4,12 +4,15 @@ import {
   DialogTitle, Grid, MenuItem, Stack, TextField, Typography,
 } from '@mui/material';
 import api from '../../services/api';
+import { useAuth, ROLES } from '../../context/AuthContext';
 
 const EMPTY_FORM = {
   first_name: '',
   last_name: '',
   email: '',
   phone: '',
+  secondary_phone: '',
+  softwares: '',
   dob: '',
   gender: 'MALE',
   branch: '',
@@ -19,6 +22,11 @@ const EMPTY_FORM = {
   guardian_name: '',
   guardian_phone: '',
   guardian_relationship: '',
+  agreed_fee: '',
+  discount_amount: '',
+  concession_amount: '',
+  scholarship_amount: '',
+  fee_notes: '',
   username: '',
   password: 'Welcome@123',
 };
@@ -43,29 +51,40 @@ const errorMessage = (err) => {
 export const AddStudentModal = ({
   open, onClose, onCreated, branches = [], courses = [], batches = [], defaultBranchId = '',
 }) => {
+  const { user } = useAuth();
+  const isReceptionDesk = [ROLES.RECEPTIONIST, ROLES.ADMISSION_COUNSELOR].includes(user?.role_code);
+  const lockedBranchId = isReceptionDesk ? (user?.branch || defaultBranchId || '') : (defaultBranchId || '');
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setForm({ ...EMPTY_FORM, branch: defaultBranchId || '' });
+      setForm({ ...EMPTY_FORM, branch: lockedBranchId });
       setError(null);
       setSubmitting(false);
     }
-  }, [open, defaultBranchId]);
+  }, [open, lockedBranchId]);
 
   const setField = (name) => (event) => {
     setForm((prev) => ({ ...prev, [name]: event.target.value }));
   };
 
+  const effectiveBranch = isReceptionDesk ? lockedBranchId : form.branch;
+  const availableCourses = useMemo(() => {
+    if (!effectiveBranch) return courses;
+    const branchCourseIds = new Set(
+      batches.filter((b) => b.branch === effectiveBranch).map((b) => b.course).filter(Boolean),
+    );
+    return branchCourseIds.size > 0 ? courses.filter((c) => branchCourseIds.has(c.id)) : courses;
+  }, [courses, batches, effectiveBranch]);
   const availableBatches = useMemo(
     () => batches.filter((b) => {
-      if (form.branch && b.branch && b.branch !== form.branch) return false;
+      if (effectiveBranch && b.branch && b.branch !== effectiveBranch) return false;
       if (form.course && b.course && b.course !== form.course) return false;
       return true;
     }),
-    [batches, form.branch, form.course],
+    [batches, effectiveBranch, form.course],
   );
 
   const handleSubmit = async () => {
@@ -81,8 +100,14 @@ export const AddStudentModal = ({
     setError(null);
     try {
       const payload = Object.fromEntries(
-        Object.entries(form).filter(([, value]) => value !== '' && value !== null && value !== undefined),
+        Object.entries({ ...form, branch: effectiveBranch || form.branch }).filter(([, value]) => value !== '' && value !== null && value !== undefined),
       );
+      if (typeof payload.softwares === 'string') {
+        payload.softwares = payload.softwares
+          .split(/[,+]/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
       const res = await api.post('/accounts/users/create-student/', payload);
       const data = res?.data ?? res;
       onCreated?.(data);
@@ -108,6 +133,7 @@ export const AddStudentModal = ({
           <Grid item xs={12} sm={6}><TextField label="Last Name" fullWidth value={form.last_name} onChange={setField('last_name')} /></Grid>
           <Grid item xs={12} sm={6}><TextField label="Email" type="email" fullWidth required value={form.email} onChange={setField('email')} /></Grid>
           <Grid item xs={12} sm={6}><TextField label="Phone Number" fullWidth value={form.phone} onChange={setField('phone')} /></Grid>
+          <Grid item xs={12} sm={6}><TextField label="Alternate Mobile Number" fullWidth value={form.secondary_phone} onChange={setField('secondary_phone')} /></Grid>
           <Grid item xs={12} sm={6}>
             <TextField label="Date of Birth" type="date" fullWidth InputLabelProps={{ shrink: true }} value={form.dob} onChange={setField('dob')} />
           </Grid>
@@ -125,14 +151,23 @@ export const AddStudentModal = ({
         </Typography>
         <Grid container spacing={2} sx={{ mt: 0.5, mb: 2 }}>
           <Grid item xs={12} sm={6}>
-            <TextField select label="Enrolled Branch" fullWidth value={form.branch} onChange={setField('branch')}>
+            <TextField
+              select
+              label="Enrolled Branch"
+              fullWidth
+              value={effectiveBranch}
+              onChange={setField('branch')}
+              disabled={isReceptionDesk}
+              helperText={isReceptionDesk ? 'Assigned to your branch' : undefined}
+            >
+              {!isReceptionDesk && <MenuItem value="">— Select branch —</MenuItem>}
               {branches.map((b) => <MenuItem key={b.id} value={b.id}>{b.name} ({b.code})</MenuItem>)}
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField select label="Target Course" fullWidth value={form.course} onChange={setField('course')}>
               <MenuItem value="">— Assign later —</MenuItem>
-              {courses.map((c) => <MenuItem key={c.id} value={c.id}>{c.title} ({c.code})</MenuItem>)}
+              {availableCourses.map((c) => <MenuItem key={c.id} value={c.id}>{c.title} ({c.code})</MenuItem>)}
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -149,7 +184,16 @@ export const AddStudentModal = ({
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <TextField label="Roll / Enrollment No." fullWidth value={form.reg_no} onChange={setField('reg_no')} helperText="Leave blank to auto-generate." />
+            <TextField label="REG NO" fullWidth value={form.reg_no} onChange={setField('reg_no')} helperText="Leave blank to auto-generate." />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Softwares"
+              fullWidth
+              value={form.softwares}
+              onChange={setField('softwares')}
+              helperText="Software(s) for this course enrolment, separated by commas or + (e.g. AutoCAD, SolidWorks)."
+            />
           </Grid>
         </Grid>
 
@@ -167,6 +211,27 @@ export const AddStudentModal = ({
               <MenuItem value="GUARDIAN">Guardian</MenuItem>
               <MenuItem value="OTHER">Other</MenuItem>
             </TextField>
+          </Grid>
+        </Grid>
+
+        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+          Fee terms (INR)
+        </Typography>
+        <Grid container spacing={2} sx={{ mt: 0.5, mb: 2 }}>
+          <Grid item xs={12} sm={6}>
+            <TextField label="Agreed Fee (₹)" type="number" fullWidth value={form.agreed_fee} onChange={setField('agreed_fee')} />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField label="Discount Amount (₹)" type="number" fullWidth value={form.discount_amount} onChange={setField('discount_amount')} />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField label="Concession Amount (₹)" type="number" fullWidth value={form.concession_amount} onChange={setField('concession_amount')} />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField label="Scholarship Amount (₹)" type="number" fullWidth value={form.scholarship_amount} onChange={setField('scholarship_amount')} />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField label="Fee Notes / Conditions" fullWidth value={form.fee_notes} onChange={setField('fee_notes')} helperText="Optional rationale for custom fees or payment conditions." />
           </Grid>
         </Grid>
 

@@ -137,6 +137,17 @@ class StudentCreateSerializer(serializers.Serializer):
     branch = serializers.UUIDField(required=False, allow_null=True)
     course = serializers.UUIDField(required=False, allow_null=True)
     batch = serializers.UUIDField(required=False, allow_null=True)
+    # SOFTWARES belongs to the course enrolment, not the student account.
+    softwares = serializers.ListField(
+        child=serializers.CharField(allow_blank=False), required=False
+    )
+
+    # fee terms (INR)
+    agreed_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    concession_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    scholarship_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    fee_notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate_email(self, value: str) -> str:
         if User.objects.filter(email__iexact=value, is_deleted=False).exists():

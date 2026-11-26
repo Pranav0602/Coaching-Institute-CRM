@@ -382,13 +382,23 @@ class UserService:
             guardian_relationship=payload.get("guardian_relationship") or None,
             course=course,
             batch=batch,
+            agreed_fee=payload.get("agreed_fee") or 0,
+            discount_amount=payload.get("discount_amount") or 0,
+            concession_amount=payload.get("concession_amount") or 0,
+            scholarship_amount=payload.get("scholarship_amount") or 0,
+            fee_notes=payload.get("fee_notes") or None,
         )
 
         enrolment = None
         if batch is not None:
             enrolment = EnrolmentService.enrol_student(
                 actor=actor,
-                data={"student": user, "course": course, "batch": batch},
+                data={
+                    "student": user,
+                    "course": course,
+                    "batch": batch,
+                    "softwares": payload.get("softwares") or [],
+                },
                 ip_address=ip_address,
             )
 

@@ -16,8 +16,8 @@ DEVICES_URL = '/api/v1/communications/devices/'
 class DeviceTokenTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.role = Role.objects.create(code=Role.STUDENT, name='Student')
-        self.role_reception = Role.objects.create(code=Role.RECEPTIONIST, name='Receptionist')
+        self.role = Role.objects.get_or_create(code=Role.STUDENT, defaults={'name': 'Student'})[0]
+        self.role_reception = Role.objects.get_or_create(code=Role.RECEPTIONIST, defaults={'name': 'Receptionist'})[0]
         self.branch = Branch.objects.create(
             code='BR-D', name='Device Branch', city='Pune',
             address='D', phone='888', email='d@test.com',
@@ -139,9 +139,9 @@ class DeviceTokenTests(TestCase):
 class StudentQrTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.role_student = Role.objects.create(code=Role.STUDENT, name='Student')
-        self.role_reception = Role.objects.create(code=Role.RECEPTIONIST, name='Receptionist')
-        self.role_teacher = Role.objects.create(code=Role.TEACHER, name='Teacher')
+        self.role_student = Role.objects.get_or_create(code=Role.STUDENT, defaults={'name': 'Student'})[0]
+        self.role_reception = Role.objects.get_or_create(code=Role.RECEPTIONIST, defaults={'name': 'Receptionist'})[0]
+        self.role_teacher = Role.objects.get_or_create(code=Role.TEACHER, defaults={'name': 'Teacher'})[0]
         self.branch = Branch.objects.create(
             code='BR-Q', name='QR Branch', city='Pune',
             address='Q', phone='777', email='q@test.com',

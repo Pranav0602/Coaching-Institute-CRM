@@ -126,6 +126,7 @@ class ProfileService:
             'secondary_phone', 'course', 'batch',
             'guardian_name', 'guardian_phone', 'guardian_relationship',
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
+            'fee_notes',
         }
         for field, value in data.items():
             if field in allowed_fields:

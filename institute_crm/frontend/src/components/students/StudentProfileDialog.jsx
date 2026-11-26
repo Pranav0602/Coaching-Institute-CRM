@@ -167,9 +167,10 @@ export const StudentProfileDialog = ({ open, row, onClose, onUpdated }) => {
             <SectionTitle>Personal information</SectionTitle>
             <Grid container spacing={1.5}>
               <InfoRow label="Full Name" value={row?.full_name} />
-              <InfoRow label="Roll / Enrollment No." value={profile?.reg_no} />
+              <InfoRow label="REG NO" value={profile?.reg_no} />
               <InfoRow label="Email" value={user?.email} />
-              <InfoRow label="Phone" value={[user?.phone, profile?.secondary_phone].filter(Boolean).join(' / ')} />
+              <InfoRow label="MOB.NO" value={user?.phone} />
+              <InfoRow label="Alternate Mobile" value={profile?.secondary_phone} />
               <InfoRow label="Date of Birth" value={formatDate(profile?.dob)} />
               <InfoRow label="Gender" value={profile?.gender} />
               <InfoRow label="Blood Group" value={profile?.blood_group} />
@@ -189,6 +190,7 @@ export const StudentProfileDialog = ({ open, row, onClose, onUpdated }) => {
               <InfoRow label="Course" value={profile?.course_title} />
               <InfoRow label="Batch" value={profile?.batch_name || 'Not assigned'} />
               <InfoRow label="Branch" value={row?.branch_name || profile?.branch_name} />
+              <InfoRow label="Softwares" value={(profile?.softwares || []).join(', ')} />
               <InfoRow label="Admission Date" value={formatDate(user?.date_joined || profile?.created_at)} />
               <InfoRow label="Account Status" value={user?.is_active === false ? 'Inactive' : 'Active'} />
               <InfoRow
@@ -202,13 +204,18 @@ export const StudentProfileDialog = ({ open, row, onClose, onUpdated }) => {
             </Grid>
 
             <Divider sx={{ my: 2 }} />
-            <SectionTitle>Financial summary (read-only)</SectionTitle>
+            <SectionTitle>Fee terms &amp; financial summary (read-only)</SectionTitle>
             <Grid container spacing={1.5}>
+              <InfoRow label="Agreed Fee" value={money(profile?.agreed_fee)} />
+              <InfoRow label="Discount Amount" value={money(profile?.discount_amount)} />
+              <InfoRow label="Concession Amount" value={money(profile?.concession_amount)} />
+              <InfoRow label="Scholarship Amount" value={money(profile?.scholarship_amount)} />
               <InfoRow label="Net Fee" value={money(profile?.net_fee ?? fee.net_fee)} />
               <InfoRow label="Total Paid" value={money(profile?.total_paid ?? fee.total_paid)} />
               <InfoRow label="Outstanding Balance" value={money(profile?.outstanding_balance ?? fee.outstanding_balance)} />
               <InfoRow label="Next Due Date" value={formatDate(profile?.next_due_date ?? fee.next_due_date)} />
               <InfoRow label="Fee Status" value={profile?.fee_status ?? fee.fee_status} />
+              {profile?.fee_notes && <InfoRow label="Fee Notes" value={profile.fee_notes} />}
             </Grid>
           </>
         )}

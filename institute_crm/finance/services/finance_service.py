@@ -169,6 +169,7 @@ class FinanceService:
             'discount_amount': money(discount_amount),
             'concession_amount': money(concession_amount),
             'scholarship_amount': money(scholarship_amount),
+            'fee_notes': getattr(profile, 'fee_notes', None) or None,
             'net_fee': money(net_fee),
             'total_paid': money(total_paid),
             'outstanding_balance': money(outstanding_balance),

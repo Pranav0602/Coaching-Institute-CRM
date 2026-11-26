@@ -31,13 +31,29 @@ class CourseService:
 
     @staticmethod
     def visible_courses(actor: User):
-        """The catalogue is shared, so every authenticated caller sees all of it."""
-        return active(Course).prefetch_related(
+        """Catalogue visibility.
+
+        The catalogue is institute-wide by default, but front-desk staff work within an
+        assigned branch and should only see courses offered in that branch.
+        """
+        queryset = active(Course).prefetch_related(
             # Without the filtered Prefetch, a soft-deleted subject reappears nested inside
             # its course - the delete looks successful in the subjects endpoint and silently
             # fails in the courses endpoint.
             CourseService._subject_prefetch()
         ).order_by("title")
+
+        role_code = getattr(actor, "role_code", None)
+        if role_code in (Role.RECEPTIONIST, Role.ADMISSION_COUNSELOR):
+            if not actor.branch_id:
+                return queryset.none()
+            queryset = queryset.filter(
+                Q(batches__branch_id=actor.branch_id, batches__is_deleted=False)
+                | Q(direct_students__user__branch_id=actor.branch_id, direct_students__is_deleted=False)
+                | Q(enrolments__student__branch_id=actor.branch_id, enrolments__is_deleted=False)
+            ).distinct()
+
+        return queryset
 
     @staticmethod
     def _subject_prefetch():

@@ -124,7 +124,7 @@ const LeadDetail = () => {
     setPendingStage(eligibleBatches[0].id);
     Alert.alert(
       'Convert to student',
-      `${record.name} will be enrolled in ${course?.title} · ${eligibleBatches[0].name}.\n\nA student login and enrollment number will be created.`,
+      `${record.name} will be enrolled in ${course?.title} · ${eligibleBatches[0].name}.\n\nA student login and REG NO will be created.`,
       [
         { text: 'Cancel', style: 'cancel', onPress: () => setPendingStage(null) },
         {

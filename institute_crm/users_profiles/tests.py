@@ -48,6 +48,7 @@ class StudentRosterTestCase(TestCase):
             agreed_fee=Decimal('100000.00'),
             discount_amount=Decimal('5000.00'),
             scholarship_amount=Decimal('10000.00'),
+            fee_notes='Approved 10k scholarship by director',
         )
         self.enrolment = CourseEnrolment.objects.create(
             student=self.student_user,
@@ -102,6 +103,7 @@ class StudentRosterTestCase(TestCase):
 
     def test_serializer_exposes_computed_fee_summary(self):
         data = StudentProfileSerializer(self.profile).data
+        self.assertEqual(data['fee_notes'], 'Approved 10k scholarship by director')
         self.assertEqual(data['net_fee'], '85000.00')
         self.assertEqual(data['total_paid'], '15000.00')
         self.assertEqual(data['outstanding_balance'], '65000.00')
@@ -115,12 +117,16 @@ class StudentRosterTestCase(TestCase):
         self.client.force_authenticate(user=self.admin_user)
         res = self.client.patch(
             f'/api/v1/profiles/students/{self.profile.pk}/',
-            {'enrollment_number': 'REG/BR-R/2026/9999'},
+            {
+                'enrollment_number': 'REG/BR-R/2026/9999',
+                'fee_notes': 'Updated concession notes',
+            },
             format='json',
         )
         self.assertEqual(res.status_code, 200)
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.reg_no, 'REG/BR-R/2026/9999')
+        self.assertEqual(self.profile.fee_notes, 'Updated concession notes')
 
     def test_finance_student_summary_endpoint(self):
         self.client.force_authenticate(user=self.admin_user)
@@ -129,6 +135,7 @@ class StudentRosterTestCase(TestCase):
             {'student_id': str(self.student_user.pk)},
         )
         self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['fee_notes'], 'Approved 10k scholarship by director')
         self.assertEqual(res.data['net_fee'], '85000.00')
         self.assertEqual(res.data['total_paid'], '15000.00')
         self.assertEqual(res.data['outstanding_balance'], '65000.00')

@@ -124,7 +124,7 @@ const IdCardsScreen = () => {
       <SearchBar
         value={query}
         onChangeText={setQuery}
-        placeholder="Search by name or enrollment number"
+        placeholder="Search by name or REG NO"
       />
 
       {students.isLoading ? <LoadingState /> : null}
@@ -165,6 +165,9 @@ const IdCardsScreen = () => {
             <Text variant="bodyMedium">{card.reg_no ?? card.enrollment_number}</Text>
             <Text variant="bodySmall" style={styles.muted}>
               {[card.course_title, card.batch_name, card.branch_name].filter(Boolean).join(' · ')}
+            </Text>
+            <Text variant="bodySmall" style={styles.muted}>
+              {[card.phone, card.secondary_phone].filter(Boolean).join(' / ') || '—'}
             </Text>
             <Text variant="bodySmall" style={styles.muted}>
               DOB {formatDate(card.dob)}
