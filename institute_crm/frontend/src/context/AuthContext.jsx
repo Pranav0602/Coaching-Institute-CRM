@@ -36,6 +36,28 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role_code]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const token = localStorage.getItem('access_token');
+    if (!token) return undefined;
+
+    api.get('/accounts/auth/me/')
+      .then((res) => {
+        if (cancelled) return;
+        const userData = res?.data ?? res;
+        if (!userData || typeof userData !== 'object') return;
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        if (userData.role_code) {
+          setActiveRole(userData.role_code);
+          localStorage.setItem('active_role', userData.role_code);
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, []);
+
   const toggleTheme = () => {
     setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
