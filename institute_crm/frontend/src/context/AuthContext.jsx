@@ -16,8 +16,19 @@ export const ROLES = {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('user');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+      localStorage.removeItem('user');
+      return null;
+    } catch (err) {
+      try { localStorage.removeItem('user'); } catch { }
+      return null;
+    }
   });
   const [activeRole, setActiveRole] = useState(() => {
     const savedRole = localStorage.getItem('active_role');
