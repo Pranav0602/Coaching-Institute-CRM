@@ -58,6 +58,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Local SQL export contains student personal data; keep it out of Git history.
+/STUDENT_DATA_CRM_pgadmin_import.sql
+
 # ---------------------------------------------------------------------------
 # IDE agent workspaces
 # ---------------------------------------------------------------------------
