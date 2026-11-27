@@ -71,17 +71,11 @@ export const AddStudentModal = ({
   };
 
   const effectiveBranch = isReceptionDesk ? lockedBranchId : form.branch;
-  const availableCourses = useMemo(() => {
-    if (!effectiveBranch) return courses;
-    const branchCourseIds = new Set(
-      batches.filter((b) => b.branch === effectiveBranch).map((b) => b.course).filter(Boolean),
-    );
-    return branchCourseIds.size > 0 ? courses.filter((c) => branchCourseIds.has(c.id)) : courses;
-  }, [courses, batches, effectiveBranch]);
+  const availableCourses = useMemo(() => courses, [courses]);
   const availableBatches = useMemo(
     () => batches.filter((b) => {
       if (effectiveBranch && b.branch && b.branch !== effectiveBranch) return false;
-      if (form.course && b.course && b.course !== form.course) return false;
+      if (form.course) return b.course === form.course;
       return true;
     }),
     [batches, effectiveBranch, form.course],
@@ -165,7 +159,13 @@ export const AddStudentModal = ({
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <TextField select label="Target Course" fullWidth value={form.course} onChange={setField('course')}>
+            <TextField
+              select
+              label="Target Course"
+              fullWidth
+              value={form.course}
+              onChange={(e) => setForm((prev) => ({ ...prev, course: e.target.value, batch: '' }))}
+            >
               <MenuItem value="">— Assign later —</MenuItem>
               {availableCourses.map((c) => <MenuItem key={c.id} value={c.id}>{c.title} ({c.code})</MenuItem>)}
             </TextField>

@@ -446,6 +446,13 @@ if HAS_SPECTACULAR:
         ),
         "VERSION": "1.0.0",
         "SERVE_INCLUDE_SCHEMA": False,
+        "ENUM_NAME_OVERRIDES": {
+            "CourseEnrolmentStatusEnum": "academics.models.CourseEnrolment.STATUS_CHOICES",
+            "AttendanceStatusEnum": "academics.models.Attendance.STATUS_CHOICES",
+            "FollowUpStatusEnum": "crm_leads.models.FollowUp.STATUS_CHOICES",
+            "InstallmentStatusEnum": "finance.models.Installment.STATUS_CHOICES",
+            "RefundStatusEnum": "finance.models.Refund.STATUS_CHOICES",
+        },
     }
 
 

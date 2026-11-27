@@ -68,3 +68,21 @@ class LeadConvertSerializer(serializers.Serializer):
     course_id = serializers.UUIDField()
     batch_id = serializers.UUIDField()
     agreed_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class PublicLeadEnquirySerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20)
+    branch_id = serializers.UUIDField(required=False, allow_null=True)
+    target_course = serializers.CharField(max_length=150, required=False, allow_blank=True, default='General')
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class PublicLeadEnquiryResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    lead = LeadSerializer()
+
+
+class ErrorDetailSerializer(serializers.Serializer):
+    detail = serializers.CharField()

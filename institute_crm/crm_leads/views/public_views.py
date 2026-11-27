@@ -2,14 +2,29 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from crm_leads.serializers import LeadSerializer
+from drf_spectacular.utils import extend_schema
+from crm_leads.serializers import (
+    ErrorDetailSerializer,
+    LeadSerializer,
+    PublicLeadEnquiryResponseSerializer,
+    PublicLeadEnquirySerializer,
+)
 from crm_leads.services.lead_service import LeadService
 from accounts.models import Branch
 from academics.models import Course
 
 class PublicLeadEnquiryView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = PublicLeadEnquirySerializer
 
+    @extend_schema(
+        request=PublicLeadEnquirySerializer,
+        responses={
+            status.HTTP_201_CREATED: PublicLeadEnquiryResponseSerializer,
+            status.HTTP_400_BAD_REQUEST: ErrorDetailSerializer,
+            status.HTTP_500_INTERNAL_SERVER_ERROR: ErrorDetailSerializer,
+        },
+    )
     def post(self, request):
         name = request.data.get('name')
         email = request.data.get('email')

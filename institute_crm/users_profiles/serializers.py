@@ -150,7 +150,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     def get_net_fee(self, obj):
         return self._fee_summary(obj)['net_fee']
 
-    def get_total_paid(self, obj):
+    def get_total_paid(self, obj) -> str:
         return self._fee_summary(obj)['total_paid']
 
     def get_outstanding_balance(self, obj):
