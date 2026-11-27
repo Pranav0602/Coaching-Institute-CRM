@@ -5,6 +5,8 @@ from users_profiles.models import StudentProfile, TeacherProfile, ParentProfile,
 from accounts.serializers import UserSerializer
 
 class StudentProfileSerializer(serializers.ModelSerializer):
+    # Keep the API's existing `id` field while using reg_no as the profile key.
+    id = serializers.CharField(source='reg_no', read_only=True)
     user_detail = UserSerializer(source='user', read_only=True)
     batch_name = serializers.CharField(source='batch.name', read_only=True)
     qr_payload = serializers.CharField(read_only=True)

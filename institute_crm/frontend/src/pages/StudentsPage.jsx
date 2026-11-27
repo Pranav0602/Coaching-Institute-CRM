@@ -118,6 +118,13 @@ export const StudentsPage = () => {
         admission_date: student.date_joined,
         status: student.is_active === false ? 'INACTIVE' : 'ACTIVE',
       };
+    }).sort((a, b) => {
+      const aRegNo = a.reg_no === '—' ? '' : a.reg_no;
+      const bRegNo = b.reg_no === '—' ? '' : b.reg_no;
+      if (!aRegNo && !bRegNo) return a.full_name.localeCompare(b.full_name);
+      if (!aRegNo) return 1;
+      if (!bRegNo) return -1;
+      return aRegNo.localeCompare(bRegNo, undefined, { numeric: true, sensitivity: 'base' });
     });
   }, [students, profiles, batches]);
 

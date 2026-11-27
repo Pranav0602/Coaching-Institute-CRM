@@ -30,6 +30,8 @@ QR_RESOLVER_ROLES = (
 class StudentProfileViewSet(viewsets.ModelViewSet):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsAuthenticated]
+    # Registration numbers can contain slashes (for example ENR/BR/2026/001).
+    lookup_value_regex = r'.+'
 
     def get_queryset(self):
         return ProfileService.filter_students(

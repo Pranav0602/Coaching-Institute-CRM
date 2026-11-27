@@ -25,7 +25,7 @@ class ProfileService:
         branch_id: str | None = None,
         search: str | None = None,
     ) -> QuerySet[StudentProfile]:
-        qs = StudentProfile.objects.filter(is_deleted=False).select_related(
+        qs = StudentProfile.objects.filter(is_deleted=False).order_by('reg_no').select_related(
             'user', 'user__branch', 'batch', 'batch__course', 'batch__branch'
         ).prefetch_related('user__enrolments__course')
 
@@ -122,7 +122,7 @@ class ProfileService:
         data: dict[str, Any],
     ) -> StudentProfile:
         allowed_fields = {
-            'reg_no', 'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
+            'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
             'secondary_phone', 'course', 'batch',
             'guardian_name', 'guardian_phone', 'guardian_relationship',
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',

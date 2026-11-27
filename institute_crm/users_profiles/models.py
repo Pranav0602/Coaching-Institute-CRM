@@ -4,6 +4,10 @@ from institute_crm.utils import BaseModel
 from accounts.models import User
 
 class StudentProfile(BaseModel):
+    # StudentProfile is identified by its registration number. The linked User
+    # model keeps its UUID primary key for authentication and account relations.
+    id = None
+
     GENDER_CHOICES = [
         ('MALE', 'Male'),
         ('FEMALE', 'Female'),
@@ -13,7 +17,7 @@ class StudentProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     #: Registration number (workbook heading "REG NO"). Renamed from `enrollment_number`;
     #: the old name is kept as a compatibility alias (see `enrollment_number` below).
-    reg_no = models.CharField('REG NO', max_length=50, unique=True, db_index=True)
+    reg_no = models.CharField('REG NO', max_length=50, primary_key=True)
     dob = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='MALE')
     blood_group = models.CharField(max_length=10, blank=True, null=True)
@@ -57,6 +61,9 @@ class StudentProfile(BaseModel):
     scholarship_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     #: Context or justification for custom fee terms, concessions, or installment conditions.
     fee_notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['reg_no']
 
     def __init__(self, *args, **kwargs):
         # Backwards compatibility: accept the old `enrollment_number` kwarg.
