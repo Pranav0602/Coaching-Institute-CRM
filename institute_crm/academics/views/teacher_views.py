@@ -10,11 +10,13 @@ any branch.
 """
 from __future__ import annotations
 
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
-from academics.models import Lecture, StudyMaterial, Timetable
+from academics.models import Lecture, StudyMaterial, TeacherAssignment, Timetable
 from academics.serializers import (
     AttendanceSerializer,
     BulkAttendanceSerializer,
@@ -204,11 +206,12 @@ class LectureViewSet(ServiceBackedViewSet):
         return self.respond(updated)
 
 
-class TeacherDashboardViewSet(ServiceBackedViewSet):
+class TeacherDashboardViewSet(viewsets.ViewSet):
     """``GET /academics/teacher-dashboard/`` - the requesting teacher's scoped overview."""
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: dict})
     def list(self, request, *args, **kwargs):
         from academics.services.teacher_dashboard_service import TeacherDashboardService
 
