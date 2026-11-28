@@ -5,7 +5,7 @@ from users_profiles.models import StudentProfile
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
-    list_display = ['reg_no', 'user', 'get_branch', 'course', 'batch', 'get_phone', 'secondary_phone', 'agreed_fee']
+    list_display = ['reg_no', 'user', 'get_branch', 'course', 'batch', 'admission_status', 'get_phone', 'secondary_phone', 'agreed_fee']
     search_fields = [
         'reg_no',
         'user__username',
@@ -16,7 +16,7 @@ class StudentProfileAdmin(admin.ModelAdmin):
         'guardian_name',
         'guardian_phone',
     ]
-    list_filter = ['gender', 'batch', 'course']
+    list_filter = ['gender', 'batch', 'course', 'admission_status', 'is_deleted']
 
     @admin.display(description="Branch")
     def get_branch(self, obj):

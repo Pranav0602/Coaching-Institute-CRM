@@ -11,6 +11,7 @@ any branch.
 from __future__ import annotations
 
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from academics.models import Lecture, StudyMaterial, Timetable
@@ -201,6 +202,17 @@ class LectureViewSet(ServiceBackedViewSet):
             ip_address=self.ip,
         )
         return self.respond(updated)
+
+
+class TeacherDashboardViewSet(ServiceBackedViewSet):
+    """``GET /academics/teacher-dashboard/`` - the requesting teacher's scoped overview."""
+
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        from academics.services.teacher_dashboard_service import TeacherDashboardService
+
+        return Response(TeacherDashboardService.teacher_dashboard(request.user))
 
 
 class StudyMaterialViewSet(ServiceBackedViewSet):

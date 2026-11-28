@@ -21,6 +21,7 @@ from academics.models import (
     Lecture,
     StudyMaterial,
     Subject,
+    TeacherAssignment,
     Timetable,
 )
 from accounts.models import User
@@ -236,6 +237,32 @@ class EnrolmentStatusSerializer(serializers.Serializer):
     """Payload for ``POST /enrolments/{id}/set-status/``."""
 
     status = serializers.ChoiceField(choices=CourseEnrolment.STATUS_CHOICES)
+
+
+class TeacherAssignmentSerializer(serializers.ModelSerializer):
+    teacher_name = serializers.CharField(source="teacher.get_full_name", read_only=True)
+    teacher_username = serializers.CharField(source="teacher.username", read_only=True)
+    teacher_email = serializers.CharField(source="teacher.email", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    branch_code = serializers.CharField(source="branch.code", read_only=True)
+    course_title = serializers.CharField(source="course.title", read_only=True)
+    course_code = serializers.CharField(source="course.code", read_only=True)
+    assigned_by_name = serializers.CharField(source="assigned_by.get_full_name", read_only=True)
+    # Write-only convenience: assign several courses in one request.
+    course_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, write_only=True
+    )
+
+    class Meta:
+        model = TeacherAssignment
+        fields = [
+            "id", "teacher", "teacher_name", "teacher_username", "teacher_email",
+            "branch", "branch_name", "branch_code", "course", "course_title",
+            "course_code", "assigned_by", "assigned_by_name", "notes",
+            "course_ids", "created_at", "updated_at",
+        ]
+        read_only_fields = ["assigned_by", "created_at", "updated_at"]
+        extra_kwargs = {"course": {"required": False}}
 
 
 class TimetableSerializer(serializers.ModelSerializer):

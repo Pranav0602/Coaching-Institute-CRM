@@ -1,5 +1,5 @@
-from django.contrib import admin
-from academics.models import Course, Subject, Batch, CourseEnrolment
+﻿from django.contrib import admin
+from academics.models import Course, Subject, Batch, CourseEnrolment, TeacherAssignment
 
 
 @admin.register(Course)
@@ -44,4 +44,11 @@ class CourseEnrolmentAdmin(admin.ModelAdmin):
 
     @admin.display(description="Softwares")
     def get_softwares(self, obj):
-        return ", ".join(obj.softwares) if obj.softwares else "—"
+        return ", ".join(obj.softwares) if obj.softwares else ""
+
+
+@admin.register(TeacherAssignment)
+class TeacherAssignmentAdmin(admin.ModelAdmin):
+    list_display = ['teacher', 'branch', 'course', 'assigned_by', 'is_deleted', 'created_at']
+    search_fields = ['teacher__username', 'teacher__first_name', 'teacher__last_name', 'course__title', 'course__code', 'branch__name']
+    list_filter = ['branch', 'course', 'is_deleted']

@@ -176,6 +176,15 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
 
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    cognito_tokens = serializers.JSONField()
+    user = UserSerializer()
+    access_expires_in = serializers.IntegerField()
+    refresh_expires_in = serializers.IntegerField()
+
+
 class ForgotPasswordSerializer(serializers.Serializer):
     email_or_username = serializers.CharField()
 

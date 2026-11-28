@@ -30,6 +30,7 @@ Module map:
 ``attendance_service`` - :class:`LectureService`, :class:`AttendanceService` (sessions, marks,
                          attendance reporting and low-attendance alerts)
 ``material_service``   - :class:`StudyMaterialService` (course-wide and per-batch resources)
+``teacher_assignment_service`` - :class:`TeacherAssignmentService` (teacher <-> branch <-> course)
 """
 from academics.services.attendance_service import (
     LOW_ATTENDANCE_THRESHOLD,
@@ -40,6 +41,8 @@ from academics.services.batch_service import BatchService
 from academics.services.course_service import CourseService, SubjectService
 from academics.services.enrolment_service import EnrolmentService
 from academics.services.material_service import StudyMaterialService
+from academics.services.teacher_assignment_service import TeacherAssignmentService
+from academics.services.teacher_dashboard_service import TeacherDashboardService
 from academics.services.timetable_service import TimetableService
 
 __all__ = [
@@ -51,5 +54,7 @@ __all__ = [
     "LectureService",
     "StudyMaterialService",
     "SubjectService",
+    "TeacherAssignmentService",
+    "TeacherDashboardService",
     "TimetableService",
 ]

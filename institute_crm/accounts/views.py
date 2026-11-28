@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -26,6 +27,7 @@ from accounts.serializers import (
     BranchStatisticsSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
+    LoginResponseSerializer,
     LoginSerializer,
     ProfilePhotoSerializer,
     ResetPasswordSerializer,
@@ -38,6 +40,7 @@ from accounts.serializers import (
 from accounts.services import AuthService, BranchService, UserService
 from institute_crm.audit import client_ip
 from institute_crm.exceptions import ValidationFailed
+from institute_crm.pagination import OptionalPageNumberPagination
 
 
 def _bool_param(raw: str | None) -> bool | None:
@@ -52,7 +55,9 @@ def _bool_param(raw: str | None) -> bool | None:
 
 class AuthLoginView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
 
+    @extend_schema(request=LoginSerializer, responses=LoginResponseSerializer)
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -280,6 +285,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = OptionalPageNumberPagination
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -291,6 +297,10 @@ class UserViewSet(viewsets.ModelViewSet):
             self.request.user,
             role=self.request.query_params.get("role"),
             branch_id=self.request.query_params.get("branch_id"),
+            branch_ids=(
+                self.request.query_params.getlist("branch_ids")
+                or self.request.query_params.get("branch_ids")
+            ),
             search=self.request.query_params.get("search"),
             is_active=_bool_param(self.request.query_params.get("is_active")),
         )

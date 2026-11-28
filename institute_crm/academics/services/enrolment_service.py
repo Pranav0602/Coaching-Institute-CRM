@@ -75,10 +75,18 @@ class EnrolmentService:
 
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
-            queryset = queryset.filter(
+            teacher_filter = (
                 Q(batch__timetables__teacher_id=actor.pk, batch__timetables__is_deleted=False)
                 | Q(batch__teachers=actor)
-            ).distinct()
+            )
+            from academics.services.teacher_assignment_service import TeacherAssignmentService
+
+            assigned_course_ids = list(
+                TeacherAssignmentService.assigned_scope(actor)["course_ids"]
+            )
+            if assigned_course_ids:
+                teacher_filter |= Q(batch__course_id__in=assigned_course_ids)
+            queryset = queryset.filter(teacher_filter).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(student_id=actor.pk)
         elif role == Role.PARENT:
@@ -393,6 +401,12 @@ class EnrolmentService:
                 "That student account is inactive.",
                 field_errors={"student": ["Account is inactive."]},
             )
+        profile = getattr(student, "student_profile", None)
+        if profile is not None and getattr(profile, "admission_status", None) == "CANCELLED":
+            raise ValidationFailed(
+                "This student's admission is cancelled; reinstate admission before enrolling.",
+                field_errors={"student": ["Admission is cancelled."]},
+            )
         if student.role_code != Role.STUDENT:
             raise ValidationFailed(
                 "Only accounts with the Student role can be enrolled in a course.",
@@ -446,7 +460,14 @@ class EnrolmentService:
     def _sync_student_profile_batch(student: User, batch: Batch) -> None:
         """Best-effort update of ``StudentProfile.batch``; absent profile is not an error."""
         profile = getattr(student, "student_profile", None)
-        if profile is None or profile.batch_id == batch.pk:
+        if profile is None:
             return
-        profile.batch = batch
-        profile.save(update_fields=["batch"])
+        fields = []
+        if profile.batch_id != batch.pk:
+            profile.batch = batch
+            fields.append("batch")
+        if getattr(profile, "admission_status", None) != "ENROLLED":
+            profile.admission_status = "ENROLLED"
+            fields.append("admission_status")
+        if fields:
+            profile.save(update_fields=fields)

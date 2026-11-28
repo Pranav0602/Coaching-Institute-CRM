@@ -16,6 +16,7 @@ from users_profiles.serializers import (
 )
 from users_profiles.services import ProfileService
 from institute_crm.exceptions import ValidationFailed
+from institute_crm.pagination import OptionalPageNumberPagination
 from institute_crm.scoping import assert_role, is_global
 
 #: Roles allowed to turn a scanned ID into a student record. Students and parents are
@@ -30,16 +31,19 @@ QR_RESOLVER_ROLES = (
 class StudentProfileViewSet(viewsets.ModelViewSet):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = OptionalPageNumberPagination
     # Registration numbers can contain slashes (for example ENR/BR/2026/001).
     lookup_value_regex = r'.+'
 
     def get_queryset(self):
+        params = self.request.query_params
         return ProfileService.filter_students(
             self.request.user,
-            batch_id=self.request.query_params.get('batch_id'),
-            course_id=self.request.query_params.get('course_id'),
-            branch_id=self.request.query_params.get('branch_id'),
-            search=self.request.query_params.get('search'),
+            batch_id=params.get('batch_id'),
+            course_id=params.get('course_id'),
+            branch_id=params.get('branch_id'),
+            branch_ids=params.getlist('branch_ids') or params.get('branch_ids'),
+            search=params.get('search'),
         )
 
     def perform_update(self, serializer):
@@ -49,6 +53,47 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
             profile=profile,
             data=serializer.validated_data,
         )
+
+    def destroy(self, request, *args, **kwargs):
+        """Remove a cancelled-admission student from active views.
+
+        Server-enforced: reception desk or admin, branch scope, eligible
+        cancelled-admission record only, explicit confirmation required.
+        Soft-delete - nothing is hard-erased; history and audit are retained.
+        """
+        # Role check first (does not reveal whether the record exists).
+        ProfileService.assert_student_admin(request.user)
+        profile = self.get_object()
+        data = request.data if isinstance(request.data, dict) else {}
+        ProfileService.delete_cancelled_student(
+            actor=request.user,
+            profile=profile,
+            reason=data.get('reason') or data.get('deletion_reason'),
+            confirm=bool(data.get('confirm') or data.get('confirmed')),
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def cancel_admission(self, request, pk=None):
+        """Mark a student's admission cancelled (with optional reason)."""
+        ProfileService.assert_student_admin(request.user)
+        profile = self.get_object()
+        data = request.data if isinstance(request.data, dict) else {}
+        updated = ProfileService.cancel_admission(
+            actor=request.user,
+            profile=profile,
+            reason=data.get('reason') or data.get('cancellation_reason'),
+        )
+        return Response(StudentProfileSerializer(updated, context={'request': request}).data)
+
+    def deletion_eligibility(self, request, pk=None):
+        """Whether this record may currently be removed, and why not."""
+        profile = self.get_object()
+        blocked = ProfileService.deletion_blocked_reason(profile)
+        return Response({
+            'eligible': blocked is None,
+            'admission_status': profile.admission_status,
+            'reason': blocked,
+        })
 
     @action(detail=True, methods=['get'], url_path='id-card')
     def id_card(self, request, pk=None):
@@ -133,12 +178,15 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
 class TeacherProfileViewSet(viewsets.ModelViewSet):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = OptionalPageNumberPagination
 
     def get_queryset(self):
+        params = self.request.query_params
         return ProfileService.filter_teachers(
             self.request.user,
-            branch_id=self.request.query_params.get('branch_id'),
-            search=self.request.query_params.get('search'),
+            branch_id=params.get('branch_id'),
+            branch_ids=params.getlist('branch_ids') or params.get('branch_ids'),
+            search=params.get('search'),
         )
 
 

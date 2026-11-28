@@ -66,7 +66,18 @@ class UserService:
         if actor.role_code in (Role.BRANCH_ADMIN, Role.ADMISSION_COUNSELOR):
             # A branch admin with no branch assigned is a data error; return nothing
             # rather than silently exposing every branch.
-            return base.filter(branch_id=actor.branch_id) if actor.branch_id else base.none()
+            if not actor.branch_id:
+                return base.none()
+            scope = base.filter(branch_id=actor.branch_id)
+            if actor.role_code == Role.BRANCH_ADMIN:
+                # Branch admins may also discover unassigned teachers so they can
+                # assign them to their branch; they still can't see other branches.
+                from django.db.models import Q
+                scope = base.filter(
+                    Q(branch_id=actor.branch_id)
+                    | Q(role__code=Role.TEACHER, branch__isnull=True)
+                )
+            return scope
         if actor.role_code == Role.RECEPTIONIST:
             # The reception desk may see the student roster of its own campus, but not
             # arbitrary staff accounts. Fails closed without a branch.
@@ -81,6 +92,7 @@ class UserService:
         *,
         role: str | None = None,
         branch_id: Any | None = None,
+        branch_ids: Any | None = None,
         search: str | None = None,
         is_active: bool | None = None,
     ) -> QuerySet[User]:
@@ -91,6 +103,13 @@ class UserService:
             queryset = queryset.filter(role__code=role)
         if branch_id:
             queryset = queryset.filter(branch_id=branch_id)
+        # Optional multi-branch narrowing (Super Admin). Only ever narrows; the
+        # visibility scope above already bounds what a non-global caller can see.
+        if branch_ids:
+            ids = branch_ids.split(",") if isinstance(branch_ids, str) else list(branch_ids)
+            ids = [str(v).strip() for v in ids if str(v).strip()]
+            if ids:
+                queryset = queryset.filter(branch_id__in=ids)
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active)
         if search:

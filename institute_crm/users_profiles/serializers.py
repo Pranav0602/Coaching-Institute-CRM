@@ -29,6 +29,14 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     softwares = serializers.SerializerMethodField()
     guardian = serializers.SerializerMethodField()
 
+    # ---- admission lifecycle --------------------------------------------
+    admission_status = serializers.CharField(read_only=True)
+    cancellation_reason = serializers.CharField(read_only=True)
+    cancelled_at = serializers.DateTimeField(read_only=True)
+    deletion_reason = serializers.CharField(read_only=True)
+    is_enrolled = serializers.SerializerMethodField()
+    deletion_eligible = serializers.SerializerMethodField()
+
     # ---- student-specific fee terms (INR) ---------------------------------
     # Computed, read-only summary; underlying records stay in `finance`.
     net_fee = serializers.SerializerMethodField()
@@ -52,7 +60,9 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
             'fee_notes',
             'net_fee', 'total_paid', 'outstanding_balance', 'next_due_date',
-            'fee_status', 'fee_summary', 'created_at'
+            'fee_status', 'fee_summary', 'created_at',
+            'admission_status', 'cancellation_reason', 'cancelled_at',
+            'deletion_reason', 'is_enrolled', 'deletion_eligible',
         ]
 
     # -- compatibility: accept `enrollment_number` as input alias for `reg_no`
@@ -112,6 +122,13 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 
     def get_course_code(self, obj):
         return getattr(self._course(obj), 'code', None)
+
+    def get_is_enrolled(self, obj):
+        return obj.is_enrolled
+
+    def get_deletion_eligible(self, obj):
+        from users_profiles.services.profile_service import ProfileService
+        return ProfileService.deletion_blocked_reason(obj) is None
 
     def get_guardian(self, obj):
         """Single guardian block for the profile viewer, with legacy fallbacks."""

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Button, MenuItem, Paper, Stack, TextField } from '@mui/material';
 import { SimplePage } from './PageLayout';
 import { AddRecordModal } from '../components/modals/AddRecordModal';
 import api, { unwrapList } from '../services/api';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 export const UserManagementPage = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role_code === ROLES.SUPER_ADMIN;
   const [users, setUsers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -11,13 +15,16 @@ export const UserManagementPage = () => {
   const [error, setError] = useState(null);
   const [errorDetail, setErrorDetail] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [branchFilter, setBranchFilter] = useState('');
 
   const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
     setErrorDetail('');
+    const params = {};
+    if (branchFilter) params.branch_id = branchFilter;
     Promise.all([
-      api.get('/accounts/users/'),
+      api.get('/accounts/users/', { params }),
       api.get('/accounts/branches/').catch(() => ({ data: [] })),
       api.get('/accounts/roles/').catch(() => ({ data: [] })),
     ])
@@ -32,7 +39,7 @@ export const UserManagementPage = () => {
         setErrorDetail(err?.message || '');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [branchFilter]);
 
   useEffect(() => {
     fetchData();
@@ -58,6 +65,17 @@ export const UserManagementPage = () => {
 
   return (
     <>
+      {isSuperAdmin && (
+        <Paper sx={{ p: 2, mb: 2, borderRadius: 3 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+            <TextField select size="small" label="Filter by branch" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} sx={{ minWidth: 240 }}>
+              <MenuItem value="">All branches</MenuItem>
+              {branches.map((b) => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
+            </TextField>
+            <Button onClick={() => setBranchFilter('')}>Clear filters</Button>
+          </Stack>
+        </Paper>
+      )}
       <SimplePage
         title="User Access & Roles"
         subtitle="Manage staff accounts and their system access."

@@ -14,6 +14,25 @@ class StudentProfile(BaseModel):
         ('OTHER', 'Other'),
     ]
 
+    # ------------------------------------------------------ admission lifecycle
+    #: PENDING - record created, admission not finalised.
+    #: ACTIVE - admitted, not yet enrolled in a batch.
+    #: ENROLLED - enrolled in at least one live course/batch.
+    #: CANCELLED - admission cancelled; only cancelled-admission records with no
+    #:   live enrolment may be removed from active views by the reception desk
+    #:   (soft-deleted, history retained). Never hard-deleted.
+    ADMISSION_PENDING = 'PENDING'
+    ADMISSION_ACTIVE = 'ACTIVE'
+    ADMISSION_ENROLLED = 'ENROLLED'
+    ADMISSION_CANCELLED = 'CANCELLED'
+
+    ADMISSION_STATUS_CHOICES = [
+        (ADMISSION_PENDING, 'Pending'),
+        (ADMISSION_ACTIVE, 'Active'),
+        (ADMISSION_ENROLLED, 'Enrolled'),
+        (ADMISSION_CANCELLED, 'Cancelled'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     #: Registration number (workbook heading "REG NO"). Renamed from `enrollment_number`;
     #: the old name is kept as a compatibility alias (see `enrollment_number` below).
@@ -49,6 +68,22 @@ class StudentProfile(BaseModel):
     guardian_relationship = models.CharField(max_length=50, blank=True, null=True)
 
     # ------------------------------------------------------------- fee terms
+    #: Admission lifecycle (see ADMISSION_STATUS_CHOICES).
+    admission_status = models.CharField(
+        max_length=20, choices=ADMISSION_STATUS_CHOICES,
+        default=ADMISSION_PENDING, db_index=True,
+    )
+    #: Free-text reason captured when admission is cancelled.
+    cancellation_reason = models.TextField(blank=True, null=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    #: Free-text reason captured when the record is removed from active views
+    #: (soft-deleted). The row and its history are retained.
+    deletion_reason = models.TextField(blank=True, null=True)
+    deleted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='deleted_student_profiles',
+    )
+
     # Student-specific fee terms, in Indian Rupees (INR). These are *terms*, not
     # transaction history: installments, payments, receipts and refunds stay in
     # `finance`. Net fee / total paid / outstanding balance / next due date /
@@ -116,6 +151,36 @@ class StudentProfile(BaseModel):
 
     def __str__(self):
         return f"StudentProfile: {self.user.get_full_name()} ({self.reg_no})"
+
+    @property
+    def has_live_enrolment(self) -> bool:
+        """True when any live (not soft-deleted) ACTIVE course enrolment exists."""
+        try:
+            return self.user.enrolments.filter(is_deleted=False, status='ACTIVE').exists()
+        except Exception:
+            return False
+
+    @property
+    def is_enrolled(self) -> bool:
+        """Enrolled in a live batch (profile-level assignment) or an ACTIVE enrolment."""
+        if self.admission_status == self.ADMISSION_ENROLLED:
+            return True
+        if self.has_live_enrolment:
+            return True
+        batch = self.batch
+        if batch is not None and not getattr(batch, 'is_deleted', False):
+            return True
+        return False
+
+    @property
+    def is_active_student(self) -> bool:
+        """Account + admission are active (not cancelled, not removed)."""
+        return (
+            not self.is_deleted
+            and self.user.is_active
+            and not getattr(self.user, 'is_deleted', False)
+            and self.admission_status != self.ADMISSION_CANCELLED
+        )
 
 
 class TeacherProfile(BaseModel):

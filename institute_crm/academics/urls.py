@@ -12,6 +12,10 @@ on each viewset:
     enrolments/{id}/set-status/             complete or drop an enrolment
     timetables/weekly/                      schedule grouped by weekday
     timetables/check-availability/          dry-run conflict check (writes nothing)
+    teacher-assignments/                     teacher + branch + course assignment CRUD (scoped)
+    teacher-assignments/my/                 calling teacher's own assignments
+    teacher-assignments/available-courses/  courses offered at a branch
+    teacher-dashboard/                      teacher's scoped overview
     timetables/{id}/generate-lectures/      materialise recurring slot into dated lectures
     lectures/{id}/register/                 marking screen roster with current marks
     lectures/{id}/bulk-attendance/          mark a whole class in one transaction
@@ -34,14 +38,18 @@ from academics.views import (
     LectureViewSet,
     StudyMaterialViewSet,
     SubjectViewSet,
+    TeacherAssignmentViewSet,
+    TeacherDashboardViewSet,
     TimetableViewSet,
 )
 
 router = DefaultRouter()
+router.register(r'teacher-dashboard', TeacherDashboardViewSet, basename='teacher-dashboard')
 router.register(r'courses', CourseViewSet, basename='course')
 router.register(r'subjects', SubjectViewSet, basename='subject')
 router.register(r'batches', BatchViewSet, basename='batch')
 router.register(r'enrolments', CourseEnrolmentViewSet, basename='enrolment')
+router.register(r'teacher-assignments', TeacherAssignmentViewSet, basename='teacher-assignment')
 router.register(r'timetables', TimetableViewSet, basename='timetable')
 router.register(r'lectures', LectureViewSet, basename='lecture')
 router.register(r'attendances', AttendanceViewSet, basename='attendance')

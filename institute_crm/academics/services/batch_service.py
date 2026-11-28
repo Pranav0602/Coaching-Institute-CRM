@@ -61,10 +61,21 @@ class BatchService:
             # Join through live timetable rows only; a soft-deleted slot must not keep
             # granting a teacher access to the cohort. Assigned (primary/co/substitute)
             # teachers via Batch.teachers also retain access even without a slot.
-            queryset = queryset.filter(
+            teacher_filter = (
                 Q(timetables__teacher_id=actor.pk, timetables__is_deleted=False)
                 | Q(teachers=actor)
-            ).distinct()
+            )
+            # Explicit teacher-course assignment grants access to that course's
+            # cohorts in the teacher's own branch. Teachers with no assignment
+            # at all fall back to the explicit batch links above.
+            from academics.services.teacher_assignment_service import TeacherAssignmentService
+
+            assigned_course_ids = list(
+                TeacherAssignmentService.assigned_scope(actor)["course_ids"]
+            )
+            if assigned_course_ids:
+                teacher_filter |= Q(course_id__in=assigned_course_ids)
+            queryset = queryset.filter(teacher_filter).distinct()
         elif role == _STUDENT:
             queryset = queryset.filter(
                 enrolments__student_id=actor.pk, enrolments__is_deleted=False
@@ -270,6 +281,9 @@ class BatchService:
         BatchService.get_batch_for_actor(actor, batch.pk)
         teachers = BatchService._resolve_teacher_ids(teacher_ids or [], batch)
         batch.teachers.set(teachers)
+        # Keep the teacher-assignment model in step: assigning a teacher to a
+        # batch also records that they teach this batch's course in its branch.
+        BatchService._sync_teacher_assignments(actor=actor, batch=batch, teachers=teachers, ip_address=ip_address)
         audit.record_audit(
             actor=actor,
             action=audit.UPDATE,
@@ -704,6 +718,28 @@ class BatchService:
                 field_errors={"teacher_ids": errors},
             )
         return teachers
+
+    @staticmethod
+    def _sync_teacher_assignments(*, actor, batch: Batch, teachers, ip_address=None) -> None:
+        """Create a TeacherAssignment for each batch-assigned teacher (best effort)."""
+        try:
+            from academics.models import TeacherAssignment
+            from academics.services.teacher_assignment_service import TeacherAssignmentService
+
+            for teacher in teachers:
+                # Don't duplicate; skip if course isn't offered at this branch.
+                if not TeacherAssignmentService.course_belongs_to_branch(batch.course, batch.branch):
+                    continue
+                if active(TeacherAssignment).filter(
+                    teacher_id=teacher.pk, branch_id=batch.branch_id, course_id=batch.course_id,
+                ).exists():
+                    continue
+                TeacherAssignment.objects.create(
+                    teacher=teacher, branch=batch.branch, course=batch.course,
+                    assigned_by=actor if getattr(actor, "pk", None) else None,
+                )
+        except Exception:
+            pass
 
     @staticmethod
     def _grade_for_pct(pct: float) -> str:

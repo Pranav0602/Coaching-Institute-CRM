@@ -84,10 +84,15 @@ class LectureService:
 
         role = getattr(actor, "role_code", None)
         if role == Role.TEACHER:
-            queryset = queryset.filter(
-                Q(timetable__teacher_id=actor.pk)
-                | Q(timetable__batch__teachers=actor)
-            ).distinct()
+            teacher_filter = Q(timetable__teacher_id=actor.pk) | Q(timetable__batch__teachers=actor)
+            from academics.services.teacher_assignment_service import TeacherAssignmentService
+
+            assigned_course_ids = list(
+                TeacherAssignmentService.assigned_scope(actor)["course_ids"]
+            )
+            if assigned_course_ids:
+                teacher_filter |= Q(timetable__batch__course_id__in=assigned_course_ids)
+            queryset = queryset.filter(teacher_filter).distinct()
         elif role == Role.STUDENT:
             queryset = queryset.filter(
                 timetable__batch__enrolments__student_id=actor.pk,

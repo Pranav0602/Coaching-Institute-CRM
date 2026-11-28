@@ -12,11 +12,13 @@ from academics.views.admin_views import (
     SubjectViewSet,
     BatchViewSet,
     CourseEnrolmentViewSet,
+    TeacherAssignmentViewSet,
 )
 from academics.views.teacher_views import (
     TimetableViewSet,
     LectureViewSet,
     StudyMaterialViewSet,
+    TeacherDashboardViewSet,
 )
 from academics.views.student_views import (
     AttendanceViewSet,
@@ -27,6 +29,8 @@ __all__ = [
     "SubjectViewSet",
     "BatchViewSet",
     "CourseEnrolmentViewSet",
+    "TeacherAssignmentViewSet",
+    "TeacherDashboardViewSet",
     "TimetableViewSet",
     "LectureViewSet",
     "StudyMaterialViewSet",

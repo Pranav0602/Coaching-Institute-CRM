@@ -80,6 +80,38 @@ class CourseEnrolment(BaseModel):
         return f"Enrolment: {self.student.username} -> {self.course.code}"
 
 
+class TeacherAssignment(BaseModel):
+    """Branch Admin assigns a teacher to a branch and the course(s) they teach.
+
+    One row per (teacher, branch, course). Coexists with - and does not replace -
+    batch-level assignment (``Batch.teachers``) or per-slot ``Timetable.teacher``;
+    teacher visibility is the union. Soft-deleted rows are retained for audit and
+    re-creatable. Existing teachers without any assignment remain valid; they
+    simply have no course list here.
+    """
+
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='teacher_assignments')
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='teacher_assignments')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='teacher_assignments')
+    assigned_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assignments_made',
+    )
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['branch', 'course__title']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['teacher', 'branch', 'course'],
+                condition=models.Q(is_deleted=False),
+                name='uniq_active_teacher_branch_course',
+            ),
+        ]
+
+    def __str__(self):
+        return f"TeacherAssignment: {self.teacher.username} -> {self.course.code} @ {self.branch.name}"
+
+
 class Timetable(BaseModel):
     DAY_CHOICES = [
         ('MONDAY', 'Monday'),

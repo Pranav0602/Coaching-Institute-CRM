@@ -65,7 +65,7 @@ class CourseService:
         )
 
     @staticmethod
-    def filter_courses(actor: User, *, search: str | None = None, field_of_engineering: str | None = None):
+    def filter_courses(actor: User, *, search: str | None = None, field_of_engineering: str | None = None, branch_id=None):
         queryset = CourseService.visible_courses(actor)
         if search:
             queryset = queryset.filter(
@@ -73,6 +73,15 @@ class CourseService:
             )
         if field_of_engineering:
             queryset = queryset.filter(field_of_engineering=field_of_engineering)
+        if branch_id:
+            # Non-global callers can never inspect another branch's offerings.
+            from institute_crm.scoping import is_global
+
+            if not is_global(actor) and getattr(actor, "branch_id", None):
+                branch_id = actor.branch_id
+            queryset = queryset.filter(
+                Q(batches__branch_id=branch_id, batches__is_deleted=False)
+            ).distinct()
         return queryset
 
     @staticmethod

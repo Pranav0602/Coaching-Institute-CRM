@@ -10,7 +10,7 @@ from __future__ import annotations
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from academics.models import Batch, Course, CourseEnrolment, Subject
+from academics.models import Batch, Course, CourseEnrolment, Subject, TeacherAssignment
 from academics.serializers import (
     BatchSerializer,
     CourseEnrolmentSerializer,
@@ -18,14 +18,18 @@ from academics.serializers import (
     EnrolmentStatusSerializer,
     EnrolmentTransferSerializer,
     SubjectSerializer,
+    TeacherAssignmentSerializer,
 )
 from academics.services import (
     BatchService,
     CourseService,
     EnrolmentService,
     SubjectService,
+    TeacherAssignmentService,
 )
 from institute_crm.viewsets import ServiceBackedViewSet
+from rest_framework import status
+from rest_framework.response import Response
 
 
 class CourseViewSet(ServiceBackedViewSet):
@@ -39,6 +43,7 @@ class CourseViewSet(ServiceBackedViewSet):
             self.request.user,
             search=self.request.query_params.get("search"),
             field_of_engineering=self.request.query_params.get("field_of_engineering") or self.request.query_params.get("field"),
+            branch_id=self.request.query_params.get("branch_id"),
         )
 
     def service_create(self, data):
@@ -243,6 +248,87 @@ class BatchViewSet(ServiceBackedViewSet):
             ip_address=self.ip,
         )
         return self.respond(updated)
+
+
+class TeacherAssignmentViewSet(ServiceBackedViewSet):
+    """Teacher <-> branch <-> course assignments. Branch-scoped; admin-only writes."""
+
+    serializer_class = TeacherAssignmentSerializer
+    queryset = TeacherAssignment.objects.none()
+
+    def get_queryset(self):
+        params = self.request.query_params
+        return TeacherAssignmentService.list_assignments(
+            self.request.user,
+            teacher_id=params.get("teacher_id"),
+            branch_id=params.get("branch_id"),
+            course_id=params.get("course_id"),
+        )
+
+    def service_create(self, data):
+        created = TeacherAssignmentService.assign(
+            actor=self.actor,
+            teacher=data.get("teacher"),
+            branch=data.get("branch"),
+            course=data.get("course"),
+            course_ids=[str(c) for c in (data.get("course_ids") or [])],
+            notes=data.get("notes"),
+            ip_address=self.ip,
+        )
+        self._created_many = created
+        return created[0]
+
+    def respond(self, instance, *, status_code=200, many=False):
+        # create() returns a single row but we may have created several.
+        created = getattr(self, "_created_many", None)
+        if created is not None and status_code == 201:
+            return Response(
+                self.get_read_serializer(created, many=True).data, status=201
+            )
+        return super().respond(instance, status_code=status_code, many=many)
+
+    def service_update(self, instance, data, *, partial):
+        return TeacherAssignmentService.update_assignment(
+            actor=self.actor,
+            assignment=instance,
+            course=data.get("course"),
+            branch=data.get("branch"),
+            teacher=data.get("teacher"),
+            notes=data.get("notes"),
+            ip_address=self.ip,
+        )
+
+    def service_delete(self, instance):
+        TeacherAssignmentService.remove_assignment(
+            actor=self.actor, assignment=instance, ip_address=self.ip
+        )
+
+    @action(detail=False, methods=["get"], url_path="available-courses")
+    def available_courses(self, request):
+        """Courses offered at a branch, for the assignment picker."""
+        from academics.serializers import CourseSerializer
+
+        branch_id = request.query_params.get("branch_id")
+        if not branch_id:
+            return Response({"detail": "branch_id is required."}, status=400)
+        from accounts.models import Branch
+
+        branch = Branch.objects.filter(pk=branch_id, is_deleted=False).first()
+        if branch is None:
+            return Response({"detail": "Branch not found."}, status=404)
+        # Branch scope: non-global callers can only inspect their own branch.
+        from institute_crm.scoping import is_global
+
+        if not is_global(request.user) and request.user.branch_id and str(request.user.branch_id) != str(branch.pk):
+            return Response({"detail": "That branch is outside your scope."}, status=403)
+        courses = TeacherAssignmentService.courses_for_branch(branch)
+        return Response(CourseSerializer(courses, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="my")
+    def my(self, request):
+        """The requesting teacher's own assignments (never anyone else's)."""
+        assignments = TeacherAssignmentService.list_assignments(request.user)
+        return Response(self.get_read_serializer(assignments, many=True).data)
 
 
 class CourseEnrolmentViewSet(ServiceBackedViewSet):
