@@ -11,8 +11,10 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     batch_name = serializers.CharField(source='batch.name', read_only=True)
     qr_payload = serializers.CharField(read_only=True)
 
-    # Backwards-compatible alias for `reg_no` (old clients read `enrollment_number`).
-    enrollment_number = serializers.CharField(source='reg_no', required=False)
+    # System-managed / read-only fields - protected from direct editing.
+    reg_no = serializers.CharField(read_only=True)
+    enrollment_number = serializers.CharField(source='reg_no', read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     # ---- roster columns (workbook headings) -------------------------------
     # BRANCH, REG NO, STUDENT NAME, MOB.NO, COURSE, SOFTWARES. Reuses existing
@@ -60,6 +62,15 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
             'fee_notes',
             'net_fee', 'total_paid', 'outstanding_balance', 'next_due_date',
+            'fee_status', 'fee_summary', 'created_at',
+            'admission_status', 'cancellation_reason', 'cancelled_at',
+            'deletion_reason', 'is_enrolled', 'deletion_eligible',
+        ]
+        read_only_fields = [
+            'id', 'reg_no', 'enrollment_number', 'user', 'user_detail', 'qr_payload',
+            'branch_name', 'branch_code', 'student_name', 'phone', 'mobile',
+            'course_code', 'course_title', 'batch_name', 'batch_code', 'softwares',
+            'guardian', 'net_fee', 'total_paid', 'outstanding_balance', 'next_due_date',
             'fee_status', 'fee_summary', 'created_at',
             'admission_status', 'cancellation_reason', 'cancelled_at',
             'deletion_reason', 'is_enrolled', 'deletion_eligible',

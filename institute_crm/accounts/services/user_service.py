@@ -95,6 +95,11 @@ class UserService:
         branch_ids: Any | None = None,
         search: str | None = None,
         is_active: bool | None = None,
+        name: str | None = None,
+        email: str | None = None,
+        reg_no: str | None = None,
+        course_id: Any | None = None,
+        batch_id: Any | None = None,
     ) -> QuerySet[User]:
         """Apply list filters on top of the actor's visibility scope."""
         queryset = UserService.visible_users(actor)
@@ -112,9 +117,10 @@ class UserService:
                 queryset = queryset.filter(branch_id__in=ids)
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active)
-        if search:
-            from django.db.models import Q
 
+        from django.db.models import Q
+
+        if search:
             term = search.strip()
             queryset = queryset.filter(
                 Q(first_name__icontains=term)
@@ -123,6 +129,28 @@ class UserService:
                 | Q(email__icontains=term)
                 | Q(phone__icontains=term)
             )
+        if name:
+            term = name.strip()
+            queryset = queryset.filter(
+                Q(first_name__icontains=term)
+                | Q(last_name__icontains=term)
+                | Q(username__icontains=term)
+            )
+        if email:
+            queryset = queryset.filter(email__icontains=email.strip())
+        if reg_no:
+            queryset = queryset.filter(student_profile__reg_no__icontains=reg_no.strip())
+        if course_id:
+            queryset = queryset.filter(
+                Q(student_profile__course_id=course_id)
+                | Q(student_profile__batch__course_id=course_id, student_profile__batch__is_deleted=False)
+                | Q(enrolments__course_id=course_id, enrolments__is_deleted=False)
+            ).distinct()
+        if batch_id:
+            queryset = queryset.filter(
+                Q(student_profile__batch_id=batch_id)
+                | Q(enrolments__batch_id=batch_id, enrolments__is_deleted=False)
+            ).distinct()
         return queryset
 
     @staticmethod

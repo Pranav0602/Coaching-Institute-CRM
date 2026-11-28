@@ -46,6 +46,11 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
             search=params.get('search'),
         )
 
+    def update(self, request, *args, **kwargs):
+        # Unauthorized users are rejected before any object lookup.
+        ProfileService.assert_student_profile_editor(request.user)
+        return super().update(request, *args, **kwargs)
+
     def perform_update(self, serializer):
         profile = serializer.instance
         ProfileService.update_student_profile(
@@ -72,6 +77,18 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
             confirm=bool(data.get('confirm') or data.get('confirmed')),
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def assign_batch(self, request, pk=None):
+        """Assign a valid batch to a student (or clear it)."""
+        ProfileService.assert_student_profile_editor(request.user)
+        profile = self.get_object()
+        data = request.data if isinstance(request.data, dict) else {}
+        updated = ProfileService.assign_batch(
+            actor=request.user,
+            profile=profile,
+            batch=data.get('batch'),
+        )
+        return Response(StudentProfileSerializer(updated, context={'request': request}).data)
 
     def cancel_admission(self, request, pk=None):
         """Mark a student's admission cancelled (with optional reason)."""

@@ -16,6 +16,11 @@ student_action_view = StudentProfileViewSet.as_view
 
 urlpatterns = [
     re_path(
+        r'^students/(?P<pk>.+)/assign-batch/$',
+        student_action_view({'post': 'assign_batch'}),
+        name='student-profile-assign-batch',
+    ),
+    re_path(
         r'^students/(?P<pk>.+)/id-card/$',
         student_action_view({'get': 'id_card'}),
         name='student-profile-id-card',

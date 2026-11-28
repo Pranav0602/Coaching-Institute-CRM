@@ -125,7 +125,9 @@ class StudentRosterTestCase(TestCase):
         )
         self.assertEqual(res.status_code, 200)
         self.profile.refresh_from_db()
-        self.assertEqual(self.profile.reg_no, 'REG/BR-R/2026/9999')
+        # `enrollment_number`/`reg_no` is a protected system identifier; legacy
+        # key is accepted but cannot rewrite the registration number.
+        self.assertEqual(self.profile.reg_no, 'REG/BR-R/2026/0001')
         self.assertEqual(self.profile.fee_notes, 'Updated concession notes')
 
     def test_finance_student_summary_endpoint(self):

@@ -217,6 +217,37 @@ class ProfileService:
             )
         return qs
 
+    #: Roles allowed to edit a student profile (server-enforced).
+    STUDENT_PROFILE_EDITORS = (
+        Role.RECEPTIONIST, Role.ADMISSION_COUNSELOR, Role.BRANCH_ADMIN, Role.SUPER_ADMIN,
+    )
+
+    #: All editable StudentProfile fields. System-managed fields (id, reg_no,
+    #: user, created_at/updated_at/deleted_at, version, is_deleted, deleted_by,
+    #: admission_status, cancellation_*, deletion_*, and read-only computed
+    #: values) are deliberately excluded; a client cannot set them.
+    EDITABLE_PROFILE_FIELDS = frozenset({
+        'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
+        'secondary_phone', 'course',
+        'academic_branch', 'source_course_label', 'source_softwares',
+        'documents_url',
+        'guardian_name', 'guardian_phone', 'guardian_relationship',
+        'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
+        'fee_notes',
+    })
+
+    @staticmethod
+    def assert_student_profile_editor(actor: User) -> None:
+        from institute_crm.exceptions import PermissionDeniedError
+        from institute_crm.scoping import assert_role
+
+        if not (actor and actor.is_authenticated):
+            raise PermissionDeniedError('Authentication is required.', code='not_authenticated')
+        assert_role(
+            actor, ProfileService.STUDENT_PROFILE_EDITORS,
+            message='Only authorized staff can edit student profiles.',
+        )
+
     @staticmethod
     @transaction.atomic
     def update_student_profile(
@@ -224,17 +255,179 @@ class ProfileService:
         profile: StudentProfile,
         data: dict[str, Any],
     ) -> StudentProfile:
-        allowed_fields = {
-            'dob', 'gender', 'blood_group', 'address', 'emergency_contact',
-            'secondary_phone', 'course', 'batch',
-            'guardian_name', 'guardian_phone', 'guardian_relationship',
-            'agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount',
-            'fee_notes',
-        }
-        for field, value in data.items():
-            if field in allowed_fields:
-                setattr(profile, field, value)
+        from institute_crm.exceptions import PermissionDeniedError, ValidationFailed
+        from institute_crm.scoping import assert_role, assert_same_branch, is_global
+
+        if not (actor and actor.is_authenticated):
+            raise PermissionDeniedError('Authentication is required.', code='not_authenticated')
+        # Unauthorized users cannot edit student profiles.
+        assert_role(
+            actor, ProfileService.STUDENT_PROFILE_EDITORS,
+            message='Only authorized staff can edit student profiles.',
+        )
+        if not is_global(actor):
+            assert_same_branch(actor, profile.user.branch_id or (profile.batch.branch_id if profile.batch_id else None))
+
+        payload = {k: v for k, v in data.items() if k in ProfileService.EDITABLE_PROFILE_FIELDS}
+        # `batch` is applied separately with server validation (assign_batch).
+
+        # Validation reusing existing domain rules.
+        if 'gender' in payload and payload['gender'] not in {c for c, _ in StudentProfile.GENDER_CHOICES}:
+            raise ValidationFailed(
+                'Invalid gender.', field_errors={'gender': ['Choose MALE, FEMALE or OTHER.']},
+            )
+        for money_field in ('agreed_fee', 'discount_amount', 'concession_amount', 'scholarship_amount'):
+            if money_field in payload and payload[money_field] is not None:
+                try:
+                    if float(payload[money_field]) < 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    raise ValidationFailed(
+                        f'{money_field} must be a non-negative number.',
+                        field_errors={money_field: ['Enter a value of zero or more.']},
+                    )
+
+        # Course must exist; batch assignment is validated separately.
+        if 'course' in payload and payload['course'] is not None:
+            from academics.models import Course
+            course = payload['course']
+            if isinstance(course, Course):
+                if course.is_deleted:
+                    raise ValidationFailed('Course not found.', field_errors={'course': ['Unknown course.']})
+            else:
+                if not Course.objects.filter(pk=course, is_deleted=False).exists():
+                    raise ValidationFailed('Course not found.', field_errors={'course': ['Unknown course.']})
+
+        # Capture `batch` separately so it is validated + synced consistently.
+        batch_provided = 'batch' in data
+        new_batch = data.get('batch')
+
+        for field, value in payload.items():
+            setattr(profile, field, value)
         profile.save()
+
+        if batch_provided:
+            ProfileService.assign_batch(
+                actor=actor, profile=profile, batch=new_batch, _already_authorized=True,
+            )
+
+        return profile
+
+    # --------------------------------------------------- batch assignment
+
+    @staticmethod
+    @transaction.atomic
+    def assign_batch(
+        *, actor: User, profile: StudentProfile, batch, _already_authorized: bool = False,
+    ) -> StudentProfile:
+        """Assign a valid batch to a student, or clear it when ``batch`` is None.
+
+        Server-enforced. Assigning (non-null) a batch is intended for a student
+        who currently has no batch. Validates: caller is authorized staff in
+        scope; batch is active; **batch branch matches the student's branch**;
+        **batch course matches the student's course** when one is set; the
+        student is not already assigned that batch and has no live enrolment in
+        that course (no duplicate); batch has free capacity. Syncs
+        ``StudentProfile.batch`` and creates a ``CourseEnrolment`` via
+        :class:`EnrolmentService`; audited.
+        """
+        from institute_crm import audit
+        from institute_crm.exceptions import ConflictError, NotFoundError, PermissionDeniedError, ValidationFailed
+        from institute_crm.scoping import assert_role, assert_same_branch, is_global
+
+        if not (actor and actor.is_authenticated):
+            raise PermissionDeniedError('Authentication is required.', code='not_authenticated')
+        if not _already_authorized:
+            assert_role(
+                actor, ProfileService.STUDENT_PROFILE_EDITORS,
+                message='Only authorized staff can assign batches.',
+            )
+        if not is_global(actor):
+            assert_same_branch(actor, profile.user.branch_id or (profile.batch.branch_id if profile.batch_id else None))
+
+        if profile.is_deleted:
+            raise NotFoundError('Student not found.')
+
+        # Clearing a batch assignment.
+        if batch is None or batch == '' or batch == []:
+            profile.batch = None
+            profile.save(update_fields=['batch'])
+            audit.record_audit(
+                actor=actor, action=audit.UPDATE, instance=profile, model_name='StudentProfile',
+                changes={'batch': None},
+            )
+            return profile
+
+        from academics.models import Batch, CourseEnrolment
+        from academics.services.enrolment_service import EnrolmentService
+
+        batch_obj = batch if isinstance(batch, Batch) else None
+        if batch_obj is None:
+            batch_obj = Batch.objects.filter(pk=batch, is_deleted=False).select_related('course', 'branch').first()
+        if batch_obj is None or getattr(batch_obj, 'is_deleted', False):
+            raise ValidationFailed(
+                'Batch not found.', field_errors={'batch': ['Unknown or inactive batch.']}, code='batch_not_found',
+            )
+
+        # No duplicate: already assigned this batch.
+        if profile.batch_id == batch_obj.pk:
+            raise ConflictError(
+                'This student is already assigned to that batch.',
+                field_errors={'batch': ['Already assigned.']}, code='duplicate_assignment',
+            )
+
+        # Only a currently-unassigned student can be assigned (for assignment flow).
+        # (Re-assignment for full edit is handled by clearing first; here we guard duplicates.)
+        if profile.has_live_enrolment:
+            existing = CourseEnrolment.objects.filter(
+                student_id=profile.user_id, course_id=batch_obj.course_id, is_deleted=False,
+            ).exclude(status='DROPPED').first()
+            if existing is not None:
+                raise ConflictError(
+                    'This student is already enrolled in this course.',
+                    field_errors={'batch': ['Duplicate enrolment.']}, code='duplicate_enrolment',
+                )
+
+        # Branch match.
+        student_branch_id = profile.user.branch_id
+        if student_branch_id and batch_obj.branch_id != student_branch_id:
+            raise ValidationFailed(
+                'Batch belongs to a different branch than the student.',
+                field_errors={'batch': ['Choose a batch in the student’s branch.']}, code='cross_branch_batch',
+            )
+        assert_same_branch(actor, batch_obj.branch_id, message='You can only assign batches in your own branch.')
+
+        # Course match (when the student already has a course).
+        if profile.course_id and batch_obj.course_id != profile.course_id:
+            raise ValidationFailed(
+                'Batch runs a different course than the student’s course.',
+                field_errors={'batch': ['Choose a batch for the student’s course.']}, code='course_mismatch',
+            )
+
+        # Inactive student / cancelled admission can't be assigned.
+        if not profile.user.is_active or profile.user.is_deleted:
+            raise ValidationFailed(
+                'Student account is inactive.', field_errors={'batch': ['Student inactive.']}, code='student_inactive',
+            )
+
+        # Capacity + no-live-enrolment + branch invariants enforced by EnrolmentService.
+        try:
+            EnrolmentService.enrol_student(
+                actor=actor,
+                data={'student': profile.user, 'course': batch_obj.course, 'batch': batch_obj, 'status': 'ACTIVE'},
+            )
+        except ConflictError:
+            raise
+        except Exception as exc:
+            raise ValidationFailed(
+                str(exc) or 'Could not assign batch.', field_errors={'batch': [str(exc)]}, code='batch_assign_failed',
+            ) from exc
+
+        profile.refresh_from_db(fields=['batch', 'admission_status'])
+        audit.record_audit(
+            actor=actor, action=audit.UPDATE, instance=profile, model_name='StudentProfile',
+            changes={'batch': str(batch_obj.pk), 'course': str(batch_obj.course_id)},
+        )
         return profile
 
     # ------------------------------------------------- cancellation & removal

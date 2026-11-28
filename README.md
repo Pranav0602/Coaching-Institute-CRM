@@ -75,6 +75,44 @@ Endpoints under `/api/v1/academics/teacher-assignments/`:
 * `DELETE` soft-delete (course lists stay accurate).
 * `GET available-courses/?branch_id=` — courses offered at a branch (branch-scoped).
 
+## Student profile editing
+
+Authorized staff (`RECEPTIONIST`, `ADMISSION_COUNSELOR`, `BRANCH_ADMIN`,
+`SUPER_ADMIN`) can `PATCH /api/v1/profiles/students/{reg_no}/`. **Every supported
+profile field is editable**: personal (`dob`, `gender`, `blood_group`, `address`,
+`emergency_contact`, `secondary_phone`), guardian (`guardian_name`,
+`guardian_phone`, `guardian_relationship`), academic (`course`, `academic_branch`,
+`source_course_label`, `source_softwares`, `documents_url`), and fee terms
+(`agreed_fee`, `discount_amount`, `concession_amount`, `scholarship_amount`,
+`fee_notes`). Contact (`first_name`, `last_name`, `email`, `phone`) is updated
+through `/api/v1/accounts/users/{id}/`. **System-managed fields are protected**:
+`reg_no`, `id`, `user`, `created_at`, `updated_at`, `deleted_at`, `version`,
+`is_deleted`, `deleted_by`, `admission_status`, `cancellation_*`, `deletion_*`,
+and computed read-only values cannot be set. Validation + existing permission
+rules are re-applied; non-authorized callers are rejected (`403`); saved changes
+are reflected everywhere. The "Edit Student Profile" dialog exposes all fields
+with loading / success / error feedback.
+
+## Assign batch to unassigned student
+
+`POST /api/v1/profiles/students/{reg_no}/assign-batch/` `{batch}` (or clear with
+`null`). Staff-only. Validates the student isn't already assigned that batch,
+**batch is active and in the student's branch**, **batch course matches the
+student's course** when set, student is active, no duplicate live enrolment,
+and batch capacity. Syncs `StudentProfile.batch`, creates a `CourseEnrolment`,
+updates `admission_status`, audited. The student dialog offers a batch picker
+(valid batches only; empty/loading/success/error states). Missing/incomplete
+course & batch assignments are handled safely.
+
+## User Access & Roles filters (Super Admin)
+
+`GET /api/v1/accounts/users/` accepts combined `name`, `email`, `reg_no`,
+`course_id`, `batch_id`, `branch_id` (+ `role`, `search`, `is_active`). Filters
+are applied server-side **after** the actor's visibility scope; results,
+pagination (`page`/`page_size`) and counts reflect active filters; non-global
+callers can't widen scope. User Management page exposes all filters + Clear
+filters + pagination.
+
 ### Teacher dashboard
 
 `GET /api/v1/academics/teacher-dashboard/` (teachers only; own scope) returns assigned

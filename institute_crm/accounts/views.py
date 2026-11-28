@@ -303,6 +303,11 @@ class UserViewSet(viewsets.ModelViewSet):
             ),
             search=self.request.query_params.get("search"),
             is_active=_bool_param(self.request.query_params.get("is_active")),
+            name=self.request.query_params.get("name"),
+            email=self.request.query_params.get("email"),
+            reg_no=self.request.query_params.get("reg_no"),
+            course_id=self.request.query_params.get("course_id"),
+            batch_id=self.request.query_params.get("batch_id"),
         )
 
     def create(self, request, *args, **kwargs):
